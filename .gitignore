@@ -10,3 +10,4 @@ Thumbs.db
 # (これらはGitのコミット履歴やブランチで管理すべきものです)
 past/
 fer_ver/
+deepface_ver/.venv
