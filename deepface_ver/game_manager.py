@@ -178,7 +178,7 @@ class GameManager:
         else:
             self.player_emotion = Counter(self.player_emotion_history).most_common(1)[0][0]
         
-        # ★結果変数をリセット
+        # 結果変数をリセット
         self.last_round_outcome = "success" # デフォルト
         self.last_score_change = 0
         self.last_life_change = 0
@@ -189,7 +189,7 @@ class GameManager:
             self.last_life_change = -1
             self.score -= 10
             self.lives -= 1
-            self.round_result_text = "顔がみつからない..." # (テキストも一応残す)
+            self.round_result_text = "顔がみつからない..."
             self.round_duration_ms = 3000
             self.sounds["fail"].play()
 

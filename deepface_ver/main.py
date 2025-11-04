@@ -195,7 +195,7 @@ def main():
 
         state = game_manager.state
         
-        # ★修正: BGMが *実際に* 再生中かどうかも確認する
+        # BGMが *実際に* 再生中かどうかも確認する
         is_bgm_playing = pygame.mixer.music.get_busy()
 
         if state == GameState.TITLE:
@@ -233,7 +233,7 @@ def main():
             frame_count += 1
             continue
 
-        # ★追加: 説明画面の描画
+        # 説明画面の描画
         elif state == GameState.INSTRUCTION:
             drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
             drawing.draw_instruction_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)

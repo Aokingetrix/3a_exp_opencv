@@ -1,4 +1,3 @@
-# drawing.py
 import pygame
 from utils import draw_text, render_image, render_frame # 自作の汎用関数
 from ui_elements import LifeDisplay
@@ -18,7 +17,7 @@ def draw_title_screen(surface, background_surface, floating_images):
     SCREEN_WIDTH = surface.get_width()
     SCREEN_HEIGHT = surface.get_height()
     
-    # --- 2. ★変更: 背景ボックス付きのタイトルを描画 ---
+    # --- 2. 背景ボックス付きのタイトルを描画 ---
     
     # --- 2a. フォントとテキストSurfaceを準備 ---
     try:
@@ -249,7 +248,6 @@ def draw_playing_screen(surface, game_manager, timer_display, cam_width, cam_hei
     timer_display.draw()
 
 
-# (drawing.py の draw_result_screen を以下に差し替える)
 
 def draw_result_screen(surface, game_manager, cam_width, cam_height):
     """
@@ -286,7 +284,7 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     npc_area_w = panel_center_x - 40
     npc_area_h = 200
     
-    # ★ draw_playing_screen のロジックを流用し、上記エリア内に描画
+    # 上記エリア内に描画
     num_npcs = len(game_manager.npc_emotions)
     
     if num_npcs == 1:
@@ -313,7 +311,7 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
         npc_img_path3 = game_manager.emotion_images.get(game_manager.npc_emotions[2], "data/question.png")
         render_image(surface, npc_img_path3, npc_area_x, npc_area_y + half_h, half_w, half_h, fill_bg=False)
         
-        if num_npcs >= 4: # (4人の場合も一応対応)
+        if num_npcs >= 4: # (4人の場合も対応)
             npc_img_path4 = game_manager.emotion_images.get(game_manager.npc_emotions[3], "data/question.png")
             render_image(surface, npc_img_path4, npc_area_x + half_w, npc_area_y + half_h, half_w, half_h, fill_bg=False)
 
