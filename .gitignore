@@ -10,4 +10,6 @@ Thumbs.db
 # (これらはGitのコミット履歴やブランチで管理すべきものです)
 past/
 fer_ver/
+# 仮想環境（ルートとプロジェクト内）
+.venv/
 deepface_ver/.venv
