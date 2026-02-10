@@ -17,13 +17,37 @@ WII_TRANSLUCENT_BG = (245, 245, 255, 250) #半透明の白
 WII_SHADOW_COLOR = (0, 0, 0, 80) # 透明度
 
 # --- パス ---
-FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-try:
-    # フォントが存在するかテスト
-    pygame.font.Font(FONT_PATH, 10)
-except (IOError, pygame.error):
-    print(f"警告: 指定フォント '{FONT_PATH}' が見つかりません。デフォルトフォントを使用します。")
-    FONT_PATH = None # None を指定すると pygame.font.Font がデフォルトフォントを使用する
+import os
+import sys
+
+# 複数の候補を試して、存在するフォントを利用する
+FONT_CANDIDATES = []
+if sys.platform.startswith("win"):
+    FONT_CANDIDATES = [
+        r"C:\\Windows\\Fonts\\Meiryo.ttc",
+        r"C:\\Windows\\Fonts\\YuGothic.ttf",
+        r"C:\\Windows\\Fonts\\msgothic.ttc",
+    ]
+else:
+    FONT_CANDIDATES = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+
+FONT_PATH = None
+for p in FONT_CANDIDATES:
+    if os.path.exists(p):
+        FONT_PATH = p
+        break
+
+if FONT_PATH:
+    try:
+        pygame.font.Font(FONT_PATH, 10)
+    except Exception:
+        print(f"警告: 指定フォント '{FONT_PATH}' の読み込みに失敗しました。デフォルトフォントを使用します。")
+        FONT_PATH = None
+else:
+    print("警告: 利用可能なフォントが見つかりません。デフォルトフォントを使用します。")
 
 # --- UI設定 ---
 TILE_SIZE = 40 # チェック模様の1マスのサイズ
