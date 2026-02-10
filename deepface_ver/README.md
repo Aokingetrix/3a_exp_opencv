@@ -35,6 +35,10 @@
    cd deepface_ver
    python main.py
    ```
+   - もしくはパッケージ式に実行することもできます（推奨）:
+   ```
+   python -m deepface_ver.scripts.main
+   ```
    - カメラとマイクが必要（表情認識とゲームプレイのため）。
    - タイトル画面から S キーでスタート。
 

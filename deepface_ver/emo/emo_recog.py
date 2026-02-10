@@ -1,10 +1,33 @@
-# compatibility shim for emo_recog
-from deepface_ver.emo.emo_recog import *
-__all__ = ["CameraManager_gpt", "EmotionRecognizer_gpt", "analyze_emotion_with_fallback"]
+import cv2
+from deepface import DeepFace
+import numpy as np
+from typing import Any, Dict, List, Optional
+
+
+def analyze_emotion_with_fallback(img, actions: Optional[List[str]] = None, backends: Optional[List[str]] = None, enforce_detection: bool = False) -> Dict[str, Any]:
+    if actions is None:
+        actions = ["emotion"]
+    if backends is None:
+        backends = ["retinaface", "mtcnn", "opencv"]
+    last_exc = None
+    for backend in backends:
+        try:
+            result = DeepFace.analyze(img, actions=actions, detector_backend=backend, enforce_detection=enforce_detection)
+            if isinstance(result, list) and len(result) > 0:
+                result = result[0]
+            if isinstance(result, dict):
+                result["detector_backend_used"] = backend
+                return result
+            return {"emotion": {}, "dominant_emotion": None, "region": None, "detector_backend_used": backend}
+        except Exception as e:
+            last_exc = e
+            print(f"[emo_recog] backend {backend} failed: {e}")
+    if last_exc is None:
+        raise RuntimeError("No detector backends configured or no backends attempted")
+    raise last_exc
 
 
 class CameraManager_gpt:
-    """カメラ映像取得担当"""
     def __init__(self, src=0):
         self.cap = cv2.VideoCapture(src)
         if not self.cap.isOpened():
@@ -19,11 +42,6 @@ class CameraManager_gpt:
 
 
 class EmotionRecognizer_gpt:
-    """
-    表情認識担当
-    - 明るさが一定以下のときのみ補正
-    - DeepFaceが苦手な感情を統合（安定化目的）
-    """
     EMOTION_MERGE_MAP = {
         "angry": "ムカムカ",
         "disgust": "ムカムカ",
@@ -35,7 +53,6 @@ class EmotionRecognizer_gpt:
     }
 
     def __init__(self):
-        # 常に5カテゴリのキーが存在するように初期化
         self.last_result = {
             "top_emotion": "探し中...",
             "scores": self._get_empty_scores(),
@@ -43,10 +60,6 @@ class EmotionRecognizer_gpt:
         }
 
     def _adjust_brightness_conditionally(self, frame):
-        """
-        明るすぎる映像は補正しない。
-        一定以下の明るさのみ補正することで白飛びを防止。
-        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         mean_brightness = np.mean(gray)
 
@@ -55,7 +68,6 @@ class EmotionRecognizer_gpt:
         return frame
 
     def _get_empty_scores(self):
-        """ 5分類の空スコア辞書を返すヘルパー """
         return {
             "ムカムカ": 0,
             "ビックリ": 0,
@@ -65,37 +77,25 @@ class EmotionRecognizer_gpt:
         }
 
     def _merge_emotions(self, raw_scores: Optional[Dict[str, float]]) -> Dict[str, int]:
-        """
-        DeepFaceの細分類を安定した5分類に統合。
-        """
         merged = self._get_empty_scores()
         if not raw_scores:
             return merged
-
-        # raw_scores のキーは文字列、値は数値であるはずだが、静的解析のため安全にキャストする
         for emo, score in (raw_scores or {}).items():
             key = emo if isinstance(emo, str) else str(emo)
             try:
                 val = float(score)
             except Exception:
-                # 数値に変換できなければ無視
                 continue
             mapped = self.EMOTION_MERGE_MAP.get(key, "シーン") or "シーン"
             merged[mapped] = merged.get(mapped, 0) + int(val)
         return merged
 
     def analyze(self, frame):
-        """
-        フレームを解析して安定した5分類結果を返す。
-        """
         if frame is None:
-            return self.last_result, None 
+            return self.last_result, None
 
         adjusted_frame = self._adjust_brightness_conditionally(frame)
-        
-
         try:
-            # フォールバックで検出器を順に試す（retinaface→mtcnn→opencv）
             result = analyze_emotion_with_fallback(
                 adjusted_frame,
                 actions=["emotion"],

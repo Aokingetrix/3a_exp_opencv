@@ -1,6 +1,44 @@
-# compatibility shim for game_manager
-from deepface_ver.core.game_manager import *
-__all__ = ["GameState", "GameManager"]
+# game_manager moved into core (use relative import for settings)
+import random
+import pygame
+from pygame.locals import *
+from collections import Counter
+from . import settings
+
+class GameState:
+    TITLE = "title"
+    INSTRUCTION = "instruction"
+    READY = "ready"
+    ROUND_START = "round_start"
+    PLAYING = "playing"
+    JUDGE = "judge"
+    RESULT = "result"
+    GAME_FINISH = "game_finish"
+
+class GameManager:
+    def __init__(self, screen_width, screen_height, sounds):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.sounds = sounds
+        
+        self.lives = 3
+        
+        self.round_duration_ms = 3000
+        self.judge_start_offset_ms = 1000
+        self.round_timeout_ms = 5000
+
+        self.round_start_screen_duration_ms = 1500
+        
+        self.fps = 30
+
+        self.emotions = ["ニコニコ", "シクシク", "ムカムカ", "ビックリ", "シーン"]
+        self.emotion_images = {
+            "ニコニコ": "data/happy.png",
+            "シクシク": "data/cry.png",
+            "ムカムカ": "data/angly.png",
+            "ビックリ": "data/surprise.png",
+            "シーン": "data/no_exp.png",
+        }
 
         self.emotions_for_npc = [e for e in self.emotions if e != "シーン"]
 
@@ -14,19 +52,19 @@ __all__ = ["GameState", "GameManager"]
         self.round_result_text = ""
 
         self.player_emotion_history = []
-        self.round_start_time = 0 # ラウンド開始時刻 (ms)
-        self.timer_sec = 0.0      # 描画用の残り秒数
+        self.round_start_time = 0
+        self.timer_sec = 0.0
 
-        self.last_round_outcome = None # "success", "fail_match", "fail_neutral", "fail_missing"
-        self.last_score_change = 0   # +100, 0, -10 など
-        self.last_life_change = 0    # 0 または -1
-        
+        self.last_round_outcome = None
+        self.last_score_change = 0
+        self.last_life_change = 0
 
-    
+    # ... keep all methods unchanged (omitted here for brevity) ...
+
     def set_difficulty(self, difficulty):
         self.difficulty = difficulty
         self.state =GameState.READY
-    
+
     def start_game(self):
         if self.state in [GameState.INSTRUCTION, GameState.GAME_FINISH]:
             self.score = 0
@@ -35,18 +73,18 @@ __all__ = ["GameState", "GameManager"]
             self.start_new_round()
             self.round_duration_ms = 3000
 
+    # rest of methods unchanged
     def start_new_round(self):
         if self.lives <= 0:
             self.state = GameState.GAME_FINISH
             return
         self.current_round += 1
-            
+        
         self.state = GameState.ROUND_START
         self.player_emotion_history = []
         
-        self.round_start_time = pygame.time.get_ticks() 
-        self.timer_sec = self.round_duration_ms / 1000.0 # 描画用 (例: 3.0)
-
+        self.round_start_time = pygame.time.get_ticks()
+        self.timer_sec = self.round_duration_ms / 1000.0
 
         self.npc_emotions = []
         if self.score < 500:
@@ -57,10 +95,8 @@ __all__ = ["GameState", "GameManager"]
 
         else:
             self.npc_emotions = random.sample(self.emotions_for_npc, 3)
-        
+
         self.countdown_se_played = False
-
-
 
     def update(self, current_player_emotion, key_pressed_s, key_pressed_e, key_pressed_n, key_pressed_h, key_pressed_r):
 
@@ -73,8 +109,6 @@ __all__ = ["GameState", "GameManager"]
                 self.start_game()
                 return
         
-        
-        # Sキーが押された場合の処理を、状態ごとに行う
         if key_pressed_s:
             if self.state == GameState.RESULT:
                 self.start_new_round()
@@ -89,8 +123,6 @@ __all__ = ["GameState", "GameManager"]
                 self.state = GameState.TITLE
                 return
         
-        # Sキーが押されていない場合の、通常の更新処理
-        
         if self.state == GameState.ROUND_START:
             current_time = pygame.time.get_ticks()
             elapsed_time = current_time - self.round_start_time
@@ -100,39 +132,28 @@ __all__ = ["GameState", "GameManager"]
         
         if self.state == GameState.PLAYING:
             current_time = pygame.time.get_ticks()
-            elapsed_time = current_time - self.round_start_time # 経過時間 (ms)
-            
-            # (1) 描画用の残り秒数を更新
+            elapsed_time = current_time - self.round_start_time
             remaining_ms = self.round_duration_ms - elapsed_time
-            self.timer_sec = max(0, remaining_ms / 1000.0) # 3.0... 0.0
+            self.timer_sec = max(0, remaining_ms / 1000.0)
             if self.timer_sec < 2.0 and not self.countdown_se_played:
                 self.sounds["count"].play()
                 self.countdown_se_played = True
 
-            # (2) 表情の記録 (ラスト1秒相当の期間に入ったら)
-            judge_start_time_ms = self.round_duration_ms - self.judge_start_offset_ms # (例: 3000 - 1000 = 2000ms)
+            judge_start_time_ms = self.round_duration_ms - self.judge_start_offset_ms
             
             if elapsed_time >= judge_start_time_ms:
-                # 表情の記録
                 if current_player_emotion != "Searching...":
                     self.player_emotion_history.append(current_player_emotion)
 
-            # (3) 時間切れの判定
-            is_time_over = elapsed_time >= self.round_duration_ms # (A) 3秒経過したか？
-            is_history_ready = bool(self.player_emotion_history) # (B) 表情は1回でも取れたか？
-            is_timeout = elapsed_time >= self.round_timeout_ms     # (C) 強制タイムアウト(5秒)か？
+            is_time_over = elapsed_time >= self.round_duration_ms
+            is_history_ready = bool(self.player_emotion_history)
+            is_timeout = elapsed_time >= self.round_timeout_ms
 
-            # (A)と(B)が両方True、または (C) がTrue になったら JUDGE へ
             if (is_time_over and is_history_ready) or is_timeout:
                 self.state = GameState.JUDGE
         
         elif self.state == GameState.JUDGE:
             self.judge()
-        
-        # elif self.state == GameState.RESULT:
-            # Sキーが押されなかった場合は、何もしない (キー入力を待つ)
-            
-        # (以下、READY, GAME_FINISH もキー入力を待つ)
 
     def judge(self):
         if not self.player_emotion_history:
@@ -140,8 +161,7 @@ __all__ = ["GameState", "GameManager"]
         else:
             self.player_emotion = Counter(self.player_emotion_history).most_common(1)[0][0]
         
-        # 結果変数をリセット
-        self.last_round_outcome = "success" # デフォルト
+        self.last_round_outcome = "success"
         self.last_score_change = 0
         self.last_life_change = 0
         
@@ -174,7 +194,6 @@ __all__ = ["GameState", "GameManager"]
             self.sounds["fail"].play()
 
         else:
-            # 成功
             self.last_round_outcome = "success"
             
             if self.score < 300:

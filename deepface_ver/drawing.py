@@ -1,21 +1,6 @@
-import pygame
-from utils import draw_text, render_image, render_frame # 自作の汎用関数
-from ui_elements import LifeDisplay
-import settings # 自作の定数モジュール
-from game_manager import GameState # GameState をインポート
-
-
-def draw_title_screen(surface, background_surface, floating_images):
-    """タイトル画面を描画する"""
-    surface.blit(background_surface, (0, 0))
-    
-    # --- 1. 浮遊画像を更新・描画 (背景) ---
-    for img in floating_images:
-        img.update()
-        img.draw(surface)
-
-    SCREEN_WIDTH = surface.get_width()
-    SCREEN_HEIGHT = surface.get_height()
+# compatibility shim for drawing
+from deepface_ver.ui.drawing import *
+__all__ = ["draw_title_screen", "draw_instruction_screen", "draw_game_background", "draw_round_start_screen", "draw_playing_screen", "draw_result_screen", "draw_finish_screen"]
     
     # --- 2. 背景ボックス付きのタイトルを描画 ---
     
