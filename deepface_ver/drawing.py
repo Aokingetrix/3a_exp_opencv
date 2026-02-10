@@ -1,16 +1,6 @@
-# compatibility shim for drawing
-from deepface_ver.ui.drawing import *
-__all__ = ["draw_title_screen", "draw_instruction_screen", "draw_game_background", "draw_round_start_screen", "draw_playing_screen", "draw_result_screen", "draw_finish_screen"]
-    
-    # --- 2. 背景ボックス付きのタイトルを描画 ---
-    
-    # --- 2a. フォントとテキストSurfaceを準備 ---
-    try:
-        font_l = pygame.font.Font(settings.FONT_PATH, 70) # "あまのじゃくゲーム"
-        font_m = pygame.font.Font(settings.FONT_PATH, 40) # "[S]スタート!"
-    except Exception:
-        font_l = pygame.font.Font(None, 74)
-        font_m = pygame.font.Font(None, 44)
+# compatibility alias: ensure this module name refers to the canonical module object
+import importlib, sys
+sys.modules[__name__] = importlib.import_module("deepface_ver.ui.drawing")
 
     title_text_surf = font_l.render("あまのじゃくゲーム", True, settings.TEXT_DARK)
     start_text_surf = font_m.render("[S] スタート!", True, settings.TEXT_DARK)

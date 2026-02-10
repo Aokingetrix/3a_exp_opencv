@@ -1,7 +1,6 @@
 # game_manager moved into core (use relative import for settings)
 import random
 import pygame
-from pygame.locals import *
 from collections import Counter
 from . import settings
 

@@ -1,10 +1,6 @@
-# compatibility shim for ui_elements
-from deepface_ver.ui.ui_elements import *
-__all__ = ["FloatingImage", "Timer", "LifeDisplay"]
-
-        # 初期位置をランダム化 (画面内)
-        self.x = random.uniform(0, screen_w - self.w)
-        self.y = random.uniform(0, screen_h - self.h)
+# compatibility alias: ensure this module name refers to the canonical module object
+import importlib, sys
+sys.modules[__name__] = importlib.import_module("deepface_ver.ui.ui_elements")
         
         # 移動速度をランダム化 (ピクセル/フレーム)
         self.vx = random.uniform(-1.0, 1.0)
