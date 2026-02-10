@@ -8,7 +8,12 @@
    cd 3a_exp_opencv
    ```
 
-2. **Python 3.11 の仮想環境を作成** (グローバル環境を汚さないため)
+2. **Windows 対応ブランチに切り替え** (必須: Ubuntu 版とは異なるため)
+   ```
+   git checkout feature/windows
+   ```
+
+3. **Python 3.11 の仮想環境を作成** 
    - Python 3.11 を公式サイトからダウンロード・インストール（インストーラで「Just for me」を選択）。
    - 仮想環境作成:
      ```
