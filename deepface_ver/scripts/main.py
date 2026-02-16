@@ -99,12 +99,14 @@ def main():
         spacing = 1
     )
 
-    recognizer = EmotionRecognizer_gpt()
+    recognizer = EmotionRecognizer_gpt(scale_factor=0.5, backend="opencv")
+    recognizer.start()  # バックグラウンドスレッドで感情認識を開始
     game_manager = GameManager(SCREEN_WIDTH, SCREEN_HEIGHT, sounds)
 
     emotion_history = deque(maxlen=settings.RECOGNITION_HISTORY_SIZE)
     smoothed_emotion = "探し中..."
     result = {'top_emotion': '探し中...', 'box': None}
+    last_result_gen = -1  # 結果の世代番号を追跡
 
     floating_images = []
     try:
@@ -142,6 +144,30 @@ def main():
                 if event.key == K_r: r_key_pressed = True
         if not running:
             break
+
+        # ─── カメラ取得 + 感情認識結果を更新（game_manager.update の前に！） ───
+        #  TITLE/INSTRUCTION 以外のステートではカメラを使う
+        #  （この下で TITLE/INSTRUCTION は continue するのでここでは気にしなくてよい）
+
+        state = game_manager.state
+
+        # TITLE / INSTRUCTION 以外ならカメラ＋感情を更新
+        if state not in (GameState.TITLE, GameState.INSTRUCTION):
+            current_frame = cam.get_frame()
+            if current_frame is not None:
+                frame = current_frame
+                recognizer.submit_frame(frame)
+            else:
+                print("カメラフレームの取得に失敗しました。直前のフレームを使用します。")
+
+            # 最新の感情認識結果を取得（即座に返る、ブロックしない）
+            new_result, gen = recognizer.get_latest_result()
+            if gen != last_result_gen:
+                last_result_gen = gen
+                result = new_result
+                emotion_history.append(result['top_emotion'])
+                count = Counter(emotion_history)
+                smoothed_emotion = count.most_common(1)[0][0]
 
         game_manager.update(
             smoothed_emotion, 
@@ -186,25 +212,6 @@ def main():
             frame_count += 1
             continue
 
-        current_frame = cam.get_frame()
-        if current_frame is not None:
-            frame = current_frame
-        else:
-            print("カメラフレームの取得に失敗しました。直前のフレームを使用します。")
-
-        if frame_count % 5 == 0:
-            new_result, _ = recognizer.analyze(frame)
-            if new_result and isinstance(new_result, dict) and 'top_emotion' in new_result:
-                result = new_result
-                emotion_history.append(result['top_emotion'])
-                count = Counter(emotion_history)
-                smoothed_emotion = count.most_common(1)[0][0]
-            else:
-                emotion_history.append('探し中...')
-                count = Counter(emotion_history)
-                smoothed_emotion = count.most_common(1)[0][0]
-                result['top_emotion'] = '探し中...'
-
         drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
 
         if state == GameState.ROUND_START:
@@ -224,6 +231,7 @@ def main():
         frame_count += 1
 
     print("終了します...")
+    recognizer.stop()  # 感情認識スレッドを停止
     cam.release()
     pygame.time.wait(300)
     pygame.quit()
