@@ -1,59 +1,46 @@
-# 使い方
+# deepface_ver — Play the game
 
-## セットアップ (Windows)
+この README は、はじめてこのリポジトリをクローンした人がゲームを実行して遊べるように、最低限のセットアップと実行手順だけを示します。
 
-1. **リポジトリをクローン**
-   ```
-   git clone https://github.com/Aokingetrix/3a_exp_opencv.git
-   cd 3a_exp_opencv
-   ```
+## 前提
+- Python 3.11 を推奨します（仮想環境での実行を想定）
+- カメラが接続されていること
 
-2. **Windows 対応ブランチに切り替え** (必須: Ubuntu 版とは異なるため)
-   ```
-   git checkout feature/windows
-   ```
+## セットアップ（リポジトリのルート: `3a_exp_opencv`）
 
-3. **Python 3.11 の仮想環境を作成** 
-   - Python 3.11 を公式サイトからダウンロード・インストール（インストーラで「Just for me」を選択）。
-   - 仮想環境作成:
-     ```
-     C:\Users\<your_username>\AppData\Local\Programs\Python\Python311\python.exe -m venv .venv
-     ```
-   - 仮想環境有効化:
-     ```
-     .\.venv\Scripts\Activate.ps1
-     ```
+1. 仮想環境を作成
 
-3. **依存ライブラリをインストール**
-   ```
-   pip install -r deepface_ver\requirements.txt
-   ```
-   ※ 初回実行時は DeepFace のモデルダウンロードが発生（ネット接続必要）。
+```powershell
+python -m venv .venv
+```
 
-4. **ゲームを実行**
-   ```
-   cd deepface_ver
-   python main.py
-   ```
-   - もしくはパッケージ式に実行することもできます（推奨）:
-   ```
-   python -m deepface_ver.scripts.main
-   ```
-   - カメラとマイクが必要（表情認識とゲームプレイのため）。
-   - タイトル画面から S キーでスタート。
+2. 仮想環境を有効化（PowerShell）
 
-## 注意点
-- 仮想環境外では動作しない（依存が仮想環境内のみ）。
-- サウンドファイル（data/sounds/）が欠けている場合、SE は無効化されるがゲームは続行可能。
-- Windows フォントが自動検出される（Meiryo または YuGothic が優先）。
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
 
-# 記録
-## 2/10 
-- やったこと
-  - 依存関係を更新してWindows版でも動くようにできた
-  - requirements.txt を Ubuntuから Windows 向けに書き換え
-  - settings.py のフォントパスを OS 判別で自動選択に変更
-  - .gitignore に仮想環境を追加
-  - 仮想環境作成・依存インストール・実行テスト完了
-  - feature/windows ブランチを作成・プッシュ
+3. 依存ライブラリをインストール
 
+```powershell
+pip install -r deepface_ver/requirements.txt
+```
+
+## 実行
+
+リポジトリのルートから次を実行してください（パッケージ形式での実行が正しくアセットを解決します）。
+
+```powershell
+python -m deepface_ver.scripts.main
+```
+
+## 基本操作
+- `S` : スタート / 次ラウンド
+- `R` : タイトルへ戻る（ゲーム終了画面）
+- `Q` または `Esc` : 終了
+
+## 補足
+- 初回実行時は DeepFace のモデルダウンロードや TensorFlow の初期化に時間がかかる場合があります。
+- 依存パッケージは `deepface_ver/requirements.txt` に記載されています。仮想環境内でインストールしてください。
+- 実行は必ず仮想環境を有効化した状態で `python -m deepface_ver.scripts.main` を使ってください。
+- 開発履歴・移行に関するメモは `MIGRATION.md` を参照してください。

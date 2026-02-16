@@ -1,2 +1,0 @@
-# DEPRECATED — moved to `deepface_ver.core` (original preserved in `deepface_ver/legacy/game_manager.py`)
-raise ImportError("deepface_ver.game_manager removed from package root — import from deepface_ver.core.game_manager or see deepface_ver/legacy/game_manager.py")

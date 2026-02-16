@@ -1,2 +1,0 @@
-# DEPRECATED — moved to `deepface_ver.ui.ui_elements` (full source in `deepface_ver/legacy/ui_elements.py`)
-raise ImportError("deepface_ver.ui_elements removed from package root — import from deepface_ver.ui.ui_elements or see deepface_ver/legacy/ui_elements.py")

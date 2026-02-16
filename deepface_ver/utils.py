@@ -1,2 +1,0 @@
-# DEPRECATED — moved to `deepface_ver.core` (original preserved in `deepface_ver/legacy/utils.py`)
-raise ImportError("deepface_ver.utils removed from package root — import from deepface_ver.core.utils or see deepface_ver/legacy/utils.py")

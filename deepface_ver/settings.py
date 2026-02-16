@@ -1,2 +1,0 @@
-# DEPRECATED — moved to `deepface_ver.core` (original preserved in `deepface_ver/legacy/settings.py`)
-raise ImportError("deepface_ver.settings removed from package root — import from deepface_ver.core.settings or see deepface_ver/legacy/settings.py")
