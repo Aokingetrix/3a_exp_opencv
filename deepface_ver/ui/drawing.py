@@ -243,6 +243,46 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
         npc_img_path2 = game_manager.emotion_images.get(game_manager.npc_emotions[1], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path2, npc_area_x + half_w, npc_area_y, half_w, half_h, fill_bg=False)
 
+        npc_img_path3 = game_manager.emotion_images.get(game_manager.npc_emotions[2], settings.QUESTION_IMAGE_PATH)
+        render_image(surface, npc_img_path3, npc_area_x, npc_area_y + half_h, half_w, half_h, fill_bg=False)
+
+        if num_npcs >= 4:
+            npc_img_path4 = game_manager.emotion_images.get(game_manager.npc_emotions[3], settings.QUESTION_IMAGE_PATH)
+            render_image(surface, npc_img_path4, npc_area_x + half_w, npc_area_y + half_h, half_w, half_h, fill_bg=False)
+
+    player_area_x = panel_center_x + 40
+    player_area_y = 120
+    player_area_w = panel_center_x - 40
+    player_area_h = 200
+
+    player_img_path = game_manager.emotion_images.get(game_manager.player_emotion, settings.QUESTION_IMAGE_PATH)
+    render_image(surface, player_img_path, player_area_x, player_area_y, player_area_w, player_area_h, fill_bg=False)
+
+    vs_surf = font_m.render("VS", True, settings.TEXT_DARK)
+    vs_rect = vs_surf.get_rect(centerx=panel_center_x, centery=npc_area_y + npc_area_h // 2)
+    surface.blit(vs_surf, vs_rect)
+
+    outcome = game_manager.last_round_outcome
+    if outcome == "success":
+        result_text = "成功！"
+        result_color = settings.ACCENT_GREEN
+    else:
+        result_text = "失敗..."
+        result_color = settings.ACCENT_RED
+
+    result_surf = font_l.render(result_text, True, result_color)
+    result_rect = result_surf.get_rect(centerx=panel_center_x, top=280)
+    surface.blit(result_surf, result_rect)
+
+    if game_manager.lives <= 0:
+        nav_text = "[S] 最終結果へ"
+    else:
+        nav_text = "[S] 次のラウンドへ"
+
+    nav_surf = font_m.render(nav_text, True, settings.TEXT_DARK)
+    nav_rect = nav_surf.get_rect(centerx=panel_center_x, top=380)
+    surface.blit(nav_surf, nav_rect)
+
 
 def draw_finish_screen(surface, background_surface, game_manager, screen_w, screen_h):
     """ゲーム終了画面を描画する"""
