@@ -99,7 +99,7 @@ def main():
         spacing = 1
     )
 
-    recognizer = EmotionRecognizer_gpt(scale_factor=0.5, backend="opencv")
+    recognizer = EmotionRecognizer_gpt(scale_factor=0.75, backend="opencv")
     recognizer.start()  # バックグラウンドスレッドで感情認識を開始
     game_manager = GameManager(SCREEN_WIDTH, SCREEN_HEIGHT, sounds)
 

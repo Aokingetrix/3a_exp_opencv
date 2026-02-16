@@ -1,4 +1,5 @@
 import cv2
+import os
 from deepface import DeepFace
 import numpy as np
 import threading
@@ -62,7 +63,7 @@ class EmotionRecognizer_gpt:
         "neutral": "シーン"
     }
 
-    def __init__(self, scale_factor: float = 0.5, backend: str = "opencv"):
+    def __init__(self, scale_factor: float = 0.75, backend: str = "opencv"):
         """初期化。
 
         Args:
@@ -72,6 +73,15 @@ class EmotionRecognizer_gpt:
         """
         self._scale_factor = max(0.1, min(scale_factor, 1.0))
         self._backend = backend
+
+        cv2_data = getattr(cv2, "data", None)
+        cascade_base = getattr(cv2_data, "haarcascades", "") if cv2_data is not None else ""
+        cascade_path = os.path.join(cascade_base, "haarcascade_frontalface_default.xml") if cascade_base else ""
+        if not cascade_path or not os.path.exists(cascade_path):
+            cascade_path = cv2.samples.findFile("haarcascade_frontalface_default.xml", required=False)
+        self._face_cascade = cv2.CascadeClassifier(cascade_path)
+        if self._face_cascade.empty():
+            raise RuntimeError(f"顔検出モデルの読み込みに失敗: {cascade_path}")
 
         self._lock = threading.Lock()
         self._last_result = {
@@ -162,77 +172,97 @@ class EmotionRecognizer_gpt:
             elapsed = time.perf_counter() - t0
             print(f"[emo_recog] 分析完了 {elapsed:.3f}秒 (backend={self._backend}, scale={self._scale_factor})")
 
-    def _is_valid_face(self, region, img_h, img_w):
-        """regionが本当に顔を検出したのか判定する。
+    def _detect_face_region(self, frame):
+        """OpenCV Haar Cascade で顔を検出し、最大の顔領域を返す。"""
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape[:2]
+        min_side = min(h, w)
+        min_size = max(24, int(min_side * 0.12))
 
-        enforce_detection=False の場合、DeepFace は顔が見つからなくても
-        画像全体を region として返す。そのケースを弾く。
-        """
-        if not region or not isinstance(region, dict):
-            return False
-        x = region.get("x", 0)
-        y = region.get("y", 0)
-        w = region.get("w", 0)
-        h = region.get("h", 0)
-        if w <= 0 or h <= 0:
-            return False
-        # 顔がフレーム面積の70%以上を占めるなら検出失敗とみなす
-        face_area = w * h
-        img_area = img_w * img_h
-        if img_area > 0 and face_area / img_area > 0.7:
-            return False
-        # 顔が小さすぎる場合も弾く（縮小後の画像で20px未満）
-        if w < 20 or h < 20:
-            return False
-        return True
+        faces = self._face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(min_size, min_size),
+        )
+
+        if faces is None or len(faces) == 0:
+            return None
+
+        x, y, fw, fh = max(faces, key=lambda rect: int(rect[2]) * int(rect[3]))
+        return {"x": int(x), "y": int(y), "w": int(fw), "h": int(fh)}
 
     def _process_frame(self, frame):
         """1枚のフレームを分析して last_result を更新する。"""
         adjusted = self._adjust_brightness_conditionally(frame)
         small = self._downscale(adjusted)
         small_h, small_w = small.shape[:2]
+        detected_region = self._detect_face_region(small)
+
+        if detected_region is None:
+            new_result = {
+                "top_emotion": "探し中...",
+                "scores": self._get_empty_scores(),
+                "box": None
+            }
+            with self._lock:
+                self._last_result = new_result
+                self._result_generation += 1
+            return
 
         try:
-            result = analyze_emotion_with_fallback(
-                small,
+            x = detected_region["x"]
+            y = detected_region["y"]
+            w = detected_region["w"]
+            h = detected_region["h"]
+
+            # 顔領域のみを切り出して感情分類（顔検出はskip）
+            face_roi = small[y:y + h, x:x + w]
+            if face_roi.size == 0:
+                raise ValueError("empty face roi")
+
+            result = DeepFace.analyze(
+                face_roi,
                 actions=["emotion"],
-                backends=[self._backend],
+                detector_backend="skip",
                 enforce_detection=False,
             )
+            if isinstance(result, list) and len(result) > 0:
+                result = result[0]
 
-            region = result.get("region", None)
+            if not isinstance(result, dict):
+                raise ValueError("unexpected result from DeepFace.analyze")
 
-            # 顔検出の妥当性チェック
-            if not self._is_valid_face(region, small_h, small_w):
-                # 顔が見つからなかった → 「探し中...」
-                new_result = {
-                    "top_emotion": "探し中...",
-                    "scores": self._get_empty_scores(),
-                    "box": None
-                }
+            raw_emotions = result.get("emotion", {})
+            merged_scores = self._merge_emotions(raw_emotions)
+
+            top_raw = result.get("dominant_emotion", None)
+            if isinstance(top_raw, str):
+                top_merged = self.EMOTION_MERGE_MAP.get(top_raw, "シーン")
             else:
-                raw_emotions = result.get("emotion", {})
-                merged_scores = self._merge_emotions(raw_emotions)
+                top_merged = "シーン"
 
-                top_raw = result.get("dominant_emotion", None)
-                if isinstance(top_raw, str):
-                    top_merged = self.EMOTION_MERGE_MAP.get(top_raw, "シーン")
-                else:
-                    top_merged = "シーン"
-
-                # 縮小画像で検出された box を元のサイズにスケールバック
-                if region and self._scale_factor < 1.0:
-                    inv = 1.0 / self._scale_factor
-                    region = {
-                        k: int(v * inv) for k, v in region.items()
-                        if isinstance(v, (int, float))
-                    }
-
-                new_result = {
-                    "top_emotion": top_merged,
-                    "scores": merged_scores,
-                    "box": region
+            region = detected_region
+            if self._scale_factor < 1.0:
+                inv = 1.0 / self._scale_factor
+                region = {
+                    "x": int(region["x"] * inv),
+                    "y": int(region["y"] * inv),
+                    "w": int(region["w"] * inv),
+                    "h": int(region["h"] * inv),
                 }
+
+            # 枠が画面外にはみ出さないように丸める
+            region["x"] = max(0, min(region["x"], frame.shape[1] - 1))
+            region["y"] = max(0, min(region["y"], frame.shape[0] - 1))
+            region["w"] = max(1, min(region["w"], frame.shape[1] - region["x"]))
+            region["h"] = max(1, min(region["h"], frame.shape[0] - region["y"]))
+
+            new_result = {
+                "top_emotion": top_merged,
+                "scores": merged_scores,
+                "box": region
+            }
 
         except Exception as e:
             print(f"[emo_recog] emotion analysis failed: {e}")
