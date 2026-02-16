@@ -62,6 +62,11 @@ def draw_title_screen(surface, background_surface, floating_images):
     box_final_y = (SCREEN_HEIGHT - box_total_h) // 2
     surface.blit(box_surf, (box_final_x, box_final_y))
 
+    dev_hint = "DEV: E→N→H"
+    hint_surf = font_m.render(dev_hint, True, settings.TEXT_DARK)
+    hint_rect = hint_surf.get_rect(right=SCREEN_WIDTH - 20, bottom=SCREEN_HEIGHT - 16)
+    surface.blit(hint_surf, hint_rect)
+
 
 def draw_instruction_screen(surface, background_surface, screen_w, screen_h):
     """
@@ -137,6 +142,68 @@ def draw_game_background(surface, background_surface, frame, result, smoothed_em
     surface.blit(background_surface, (0, 0))
     render_frame(surface, frame, result, cam_width, 0)
     draw_text(surface, f"あなた: {smoothed_emotion}", (cam_width + 10, 10))
+
+
+def draw_developer_screen(surface, background_surface, frame, result, cam_width):
+    """開発者用の診断画面を描画する。"""
+    screen_h = surface.get_height()
+
+    surface.blit(background_surface, (0, 0))
+    render_frame(surface, frame, result, cam_width, 0)
+    surface.fill(settings.WII_BACKGROUND, (0, 0, cam_width, screen_h))
+
+    status = result.get("status", "unknown") if isinstance(result, dict) else "unknown"
+    reason = result.get("reason", "") if isinstance(result, dict) else ""
+    top_emotion = result.get("top_emotion", "探し中...") if isinstance(result, dict) else "探し中..."
+    latency_ms = result.get("latency_ms", 0.0) if isinstance(result, dict) else 0.0
+    face_detected = result.get("face_detected", False) if isinstance(result, dict) else False
+    emotion_success = result.get("emotion_success", False) if isinstance(result, dict) else False
+    detector = result.get("detector", "-") if isinstance(result, dict) else "-"
+    classifier = result.get("classifier", "-") if isinstance(result, dict) else "-"
+    box = result.get("box") if isinstance(result, dict) else None
+
+    if status == "ok":
+        status_text = "OK"
+        status_color = settings.ACCENT_GREEN
+    elif status == "no_face":
+        status_text = "顔検出失敗"
+        status_color = settings.ACCENT_RED
+    elif status == "emotion_error":
+        status_text = "感情分類失敗"
+        status_color = settings.ACCENT_RED
+    else:
+        status_text = status
+        status_color = settings.TEXT_DARK
+
+    y = 20
+    draw_text(surface, "開発者モード", (20, y), size=36)
+    y += 52
+    draw_text(surface, f"状態: {status_text}", (20, y), color=status_color, size=30)
+    y += 44
+    draw_text(surface, f"感情: {top_emotion}", (20, y), size=28)
+    y += 40
+    draw_text(surface, f"顔検出: {'成功' if face_detected else '失敗'}", (20, y), size=24)
+    y += 34
+    draw_text(surface, f"感情分類: {'成功' if emotion_success else '失敗'}", (20, y), size=24)
+    y += 34
+    draw_text(surface, f"遅延: {latency_ms} ms", (20, y), size=24)
+    y += 34
+    draw_text(surface, f"detector: {detector}", (20, y), size=20)
+    y += 30
+    draw_text(surface, f"classifier: {classifier}", (20, y), size=20)
+    y += 30
+
+    if box and isinstance(box, dict):
+        draw_text(surface, f"box: x={box.get('x')} y={box.get('y')} w={box.get('w')} h={box.get('h')}", (20, y), size=20)
+        y += 30
+    else:
+        draw_text(surface, "box: None", (20, y), size=20)
+        y += 30
+
+    if reason:
+        draw_text(surface, f"reason: {reason[:52]}", (20, y), size=20)
+
+    draw_text(surface, "[R] タイトルへ戻る", (20, screen_h - 40), size=24)
 
 
 def draw_round_start_screen(surface, game_manager, cam_width, cam_height):

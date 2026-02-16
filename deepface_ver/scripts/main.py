@@ -105,8 +105,20 @@ def main():
 
     emotion_history = deque(maxlen=settings.RECOGNITION_HISTORY_SIZE)
     smoothed_emotion = "探し中..."
-    result = {'top_emotion': '探し中...', 'box': None}
+    result = {
+        'top_emotion': '探し中...',
+        'box': None,
+        'status': 'init',
+        'reason': '初期化中',
+        'face_detected': False,
+        'emotion_success': False,
+        'latency_ms': 0.0,
+        'detector': 'opencv_haar',
+        'classifier': 'deepface_emotion_skip',
+    }
     last_result_gen = -1  # 結果の世代番号を追跡
+    developer_mode = False
+    dev_code_buffer = deque(maxlen=3)
 
     floating_images = []
     try:
@@ -145,6 +157,30 @@ def main():
         if not running:
             break
 
+        state = game_manager.state
+        if not developer_mode and state == GameState.TITLE:
+            if e_key_pressed:
+                dev_code_buffer.append("E")
+            if n_key_pressed:
+                dev_code_buffer.append("N")
+            if h_key_pressed:
+                dev_code_buffer.append("H")
+
+            if list(dev_code_buffer) == ["E", "N", "H"]:
+                developer_mode = True
+                dev_code_buffer.clear()
+                emotion_history.clear()
+                smoothed_emotion = "探し中..."
+                print("[main] 開発者モードに入りました")
+
+        if developer_mode and r_key_pressed:
+            developer_mode = False
+            dev_code_buffer.clear()
+            game_manager.state = GameState.TITLE
+            emotion_history.clear()
+            smoothed_emotion = "探し中..."
+            print("[main] 開発者モードを終了しました")
+
         # ─── カメラ取得 + 感情認識結果を更新（game_manager.update の前に！） ───
         #  TITLE/INSTRUCTION 以外のステートではカメラを使う
         #  （この下で TITLE/INSTRUCTION は continue するのでここでは気にしなくてよい）
@@ -152,7 +188,7 @@ def main():
         state = game_manager.state
 
         # TITLE / INSTRUCTION 以外ならカメラ＋感情を更新
-        if state not in (GameState.TITLE, GameState.INSTRUCTION):
+        if developer_mode or state not in (GameState.TITLE, GameState.INSTRUCTION):
             current_frame = cam.get_frame()
             if current_frame is not None:
                 frame = current_frame
@@ -165,23 +201,31 @@ def main():
             if gen != last_result_gen:
                 last_result_gen = gen
                 result = new_result
-                emotion_history.append(result['top_emotion'])
-                count = Counter(emotion_history)
-                smoothed_emotion = count.most_common(1)[0][0]
+                if developer_mode:
+                    smoothed_emotion = result.get('top_emotion', '探し中...')
+                else:
+                    emotion_history.append(result['top_emotion'])
+                    count = Counter(emotion_history)
+                    smoothed_emotion = count.most_common(1)[0][0]
 
-        game_manager.update(
-            smoothed_emotion, 
-            s_key_pressed, 
-            e_key_pressed, 
-            n_key_pressed, 
-            h_key_pressed,
-            r_key_pressed
-        )
+        if not developer_mode:
+            game_manager.update(
+                smoothed_emotion,
+                s_key_pressed,
+                e_key_pressed,
+                n_key_pressed,
+                h_key_pressed,
+                r_key_pressed
+            )
 
         state = game_manager.state
         is_bgm_playing = pygame.mixer.music.get_busy()
 
-        if state == GameState.TITLE:
+        if developer_mode:
+            if current_bgm != "title" or not is_bgm_playing:
+                utils.play_bgm(settings.BGM_PATHS["title"])
+                current_bgm = "title"
+        elif state == GameState.TITLE:
             if current_bgm != "title" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["title"])
                 current_bgm = "title"
@@ -197,6 +241,13 @@ def main():
             if current_bgm != "finish" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["finish"])
                 current_bgm = "finish"
+
+        if developer_mode:
+            drawing.draw_developer_screen(screen, background_surface, frame, result, CAM_WIDTH)
+            pygame.display.flip()
+            clock.tick(game_manager.fps)
+            frame_count += 1
+            continue
 
         if state == GameState.TITLE:
             drawing.draw_title_screen(screen, background_surface, floating_images)
