@@ -1,3 +1,2 @@
-# compatibility alias: ensure this module name refers to the canonical module object
-import importlib, sys
-sys.modules[__name__] = importlib.import_module("deepface_ver.core.game_manager")
+# DEPRECATED — moved to `deepface_ver.core` (original preserved in `deepface_ver/legacy/game_manager.py`)
+raise ImportError("deepface_ver.game_manager removed from package root — import from deepface_ver.core.game_manager or see deepface_ver/legacy/game_manager.py")

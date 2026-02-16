@@ -1,3 +1,2 @@
-# compatibility alias: ensure this module name refers to the canonical module object
-import importlib, sys
-sys.modules[__name__] = importlib.import_module("deepface_ver.core.utils")
+# DEPRECATED — moved to `deepface_ver.core` (original preserved in `deepface_ver/legacy/utils.py`)
+raise ImportError("deepface_ver.utils removed from package root — import from deepface_ver.core.utils or see deepface_ver/legacy/utils.py")

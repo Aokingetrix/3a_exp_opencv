@@ -16,6 +16,7 @@ WII_SHADOW_COLOR = (0, 0, 0, 80)
 
 import os
 import sys
+from pathlib import Path
 
 FONT_CANDIDATES = []
 if sys.platform.startswith("win"):
@@ -48,15 +49,34 @@ else:
 TILE_SIZE = 40
 RECOGNITION_HISTORY_SIZE = 3
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PACKAGE_ROOT / "data"
+
+
+def asset_path(*relative_parts):
+    return str(DATA_DIR.joinpath(*relative_parts))
+
 BGM_PATHS = {
-    "title": "data/sounds/bgm_title.mp3",
-    "play": "data/sounds/bgm_play.mp3",
-    "finish": "data/sounds/bgm_finish.mp3",
+    "title": asset_path("sounds", "bgm_title.mp3"),
+    "play": asset_path("sounds", "bgm_play.mp3"),
+    "finish": asset_path("sounds", "bgm_finish.mp3"),
 }
 
 SE_PATHS = {
-    "select": "data/sounds/se_select.mp3",
-    "count": "data/sounds/se_count.mp3",
-    "success": "data/sounds/se_success.mp3",
-    "fail": "data/sounds/se_fail.mp3",
+    "select": asset_path("sounds", "se_select.mp3"),
+    "count": asset_path("sounds", "se_count.mp3"),
+    "success": asset_path("sounds", "se_success.mp3"),
+    "fail": asset_path("sounds", "se_fail.mp3"),
+}
+
+CLOCK_IMAGE_PATH = asset_path("clock.png")
+HEART_IMAGE_PATH = asset_path("heart.png")
+NO_EXP_IMAGE_PATH = asset_path("no_exp.png")
+QUESTION_IMAGE_PATH = asset_path("question.png")
+EMOTION_IMAGE_PATHS = {
+    "ニコニコ": asset_path("happy.png"),
+    "シクシク": asset_path("cry.png"),
+    "ムカムカ": asset_path("angly.png"),
+    "ビックリ": asset_path("surprise.png"),
+    "シーン": NO_EXP_IMAGE_PATH,
 }

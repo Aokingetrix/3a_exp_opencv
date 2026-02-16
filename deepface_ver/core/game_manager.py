@@ -31,13 +31,7 @@ class GameManager:
         self.fps = 30
 
         self.emotions = ["ニコニコ", "シクシク", "ムカムカ", "ビックリ", "シーン"]
-        self.emotion_images = {
-            "ニコニコ": "data/happy.png",
-            "シクシク": "data/cry.png",
-            "ムカムカ": "data/angly.png",
-            "ビックリ": "data/surprise.png",
-            "シーン": "data/no_exp.png",
-        }
+        self.emotion_images = dict(settings.EMOTION_IMAGE_PATHS)
 
         self.emotions_for_npc = [e for e in self.emotions if e != "シーン"]
 
@@ -141,7 +135,7 @@ class GameManager:
             judge_start_time_ms = self.round_duration_ms - self.judge_start_offset_ms
             
             if elapsed_time >= judge_start_time_ms:
-                if current_player_emotion != "Searching...":
+                if current_player_emotion != "探し中...":
                     self.player_emotion_history.append(current_player_emotion)
 
             is_time_over = elapsed_time >= self.round_duration_ms

@@ -1,3 +1,2 @@
-# compatibility alias: ensure this module name refers to the canonical module object
-import importlib, sys
-sys.modules[__name__] = importlib.import_module("deepface_ver.emo.emo_recog")
+# DEPRECATED — moved to `deepface_ver.emo` (original preserved in `deepface_ver/legacy/emo_recog.py`)
+raise ImportError("deepface_ver.emo_recog removed from package root — import from deepface_ver.emo.emo_recog or see deepface_ver/legacy/emo_recog.py")

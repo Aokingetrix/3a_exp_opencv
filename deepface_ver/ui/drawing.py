@@ -75,7 +75,7 @@ def draw_instruction_screen(surface, background_surface, screen_w, screen_h):
     char_y = screen_h - char_h - 30
 
     try:
-        render_image(surface, "data/no_exp.png", char_x, char_y, char_w, char_h, fill_bg=False)
+        render_image(surface, settings.NO_EXP_IMAGE_PATH, char_x, char_y, char_w, char_h, fill_bg=False)
     except Exception as e:
         print(f"キャラ画像エラー: {e}")
         pygame.draw.rect(surface, (255,0,0), (char_x, char_y, char_w, char_h))
@@ -223,24 +223,24 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     num_npcs = len(game_manager.npc_emotions)
 
     if num_npcs == 1:
-        npc_img_path = game_manager.emotion_images.get(game_manager.npc_emotions[0], "data/question.png")
+        npc_img_path = game_manager.emotion_images.get(game_manager.npc_emotions[0], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path, npc_area_x, npc_area_y, npc_area_w, npc_area_h, fill_bg=False)
 
     elif num_npcs == 2:
         half_w = npc_area_w // 2
-        npc_img_path1 = game_manager.emotion_images.get(game_manager.npc_emotions[0], "data/question.png")
+        npc_img_path1 = game_manager.emotion_images.get(game_manager.npc_emotions[0], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path1, npc_area_x, npc_area_y, half_w, npc_area_h, fill_bg=False)
         
-        npc_img_path2 = game_manager.emotion_images.get(game_manager.npc_emotions[1], "data/question.png")
+        npc_img_path2 = game_manager.emotion_images.get(game_manager.npc_emotions[1], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path2, npc_area_x + half_w, npc_area_y, half_w, npc_area_h, fill_bg=False)
 
     elif num_npcs >= 3:
         half_w = npc_area_w // 2
         half_h = npc_area_h // 2
-        npc_img_path1 = game_manager.emotion_images.get(game_manager.npc_emotions[0], "data/question.png")
+        npc_img_path1 = game_manager.emotion_images.get(game_manager.npc_emotions[0], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path1, npc_area_x, npc_area_y, half_w, half_h, fill_bg=False)
         
-        npc_img_path2 = game_manager.emotion_images.get(game_manager.npc_emotions[1], "data/question.png")
+        npc_img_path2 = game_manager.emotion_images.get(game_manager.npc_emotions[1], settings.QUESTION_IMAGE_PATH)
         render_image(surface, npc_img_path2, npc_area_x + half_w, npc_area_y, half_w, half_h, fill_bg=False)
 
 
