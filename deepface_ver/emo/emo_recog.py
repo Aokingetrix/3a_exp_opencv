@@ -1,5 +1,7 @@
-import cv2
 import os
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+import cv2
 import shutil
 import tempfile
 from deepface import DeepFace
@@ -7,6 +9,7 @@ import numpy as np
 import threading
 import time
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 
 def analyze_emotion_with_fallback(img, actions: Optional[List[str]] = None, backends: Optional[List[str]] = None, enforce_detection: bool = False) -> Dict[str, Any]:
@@ -26,7 +29,6 @@ def analyze_emotion_with_fallback(img, actions: Optional[List[str]] = None, back
             return {"emotion": {}, "dominant_emotion": None, "region": None, "detector_backend_used": backend}
         except Exception as e:
             last_exc = e
-            print(f"[emo_recog] backend {backend} failed: {e}")
     if last_exc is None:
         raise RuntimeError("No detector backends configured or no backends attempted")
     raise last_exc
@@ -78,13 +80,19 @@ class EmotionRecognizer_gpt:
 
         self._face_cascade = None
         self._detector_mode = "opencv_haar"
-        cascade = self._load_face_cascade()
+        self._last_detector_used = self._detector_mode
+        self._no_face_streak = 0
+        self._deepface_fallback_streak = 3
+        cascade, cascade_source = self._load_face_cascade()
         if cascade is not None and not cascade.empty():
             self._face_cascade = cascade
+            print(f"[emo_recog] Haar loaded from: {cascade_source}")
         else:
-            # 起動不能にしない。検出はDeepFace側にフォールバックする。
-            self._detector_mode = f"deepface_{self._backend}"
-            print("[emo_recog] Haar cascade を使えないため DeepFace detector にフォールバックします")
+            raise RuntimeError(
+                "固定Haarファイルの読み込みに失敗: "
+                f"{cascade_source}. "
+                "deepface_ver/data/cascades/haarcascade_frontalface_default.xml を確認してください。"
+            )
 
         self._lock = threading.Lock()
         self._last_result = {
@@ -96,7 +104,7 @@ class EmotionRecognizer_gpt:
             "face_detected": False,
             "emotion_success": False,
             "latency_ms": 0.0,
-            "detector": "opencv_haar",
+            "detector": self._detector_mode,
             "classifier": "deepface_emotion_skip"
         }
         self._result_generation: int = 0  # 新しい結果が出るたびにインクリメント
@@ -116,7 +124,6 @@ class EmotionRecognizer_gpt:
         self._running = True
         self._thread = threading.Thread(target=self._worker_loop, daemon=True)
         self._thread.start()
-        print("[emo_recog] 感情認識スレッド開始")
 
     def stop(self):
         """バックグラウンドスレッドを停止する。"""
@@ -124,7 +131,6 @@ class EmotionRecognizer_gpt:
         self._new_frame_event.set()  # スレッドを起こして終了させる
         if self._thread:
             self._thread.join(timeout=3)
-        print("[emo_recog] 感情認識スレッド停止")
 
     def submit_frame(self, frame):
         """分析対象のフレームを渡す（即座に返る）。
@@ -179,8 +185,6 @@ class EmotionRecognizer_gpt:
 
             t0 = time.perf_counter()
             self._process_frame(frame)
-            elapsed = time.perf_counter() - t0
-            print(f"[emo_recog] 分析完了 {elapsed:.3f}秒 (backend={self._backend}, scale={self._scale_factor})")
 
     def _detect_face_region(self, frame):
         """OpenCV Haar Cascade で顔を検出し、最大の顔領域を返す。"""
@@ -204,49 +208,47 @@ class EmotionRecognizer_gpt:
         x, y, fw, fh = max(faces, key=lambda rect: int(rect[2]) * int(rect[3]))
         return {"x": int(x), "y": int(y), "w": int(fw), "h": int(fh)}
 
+    def _detect_face_region_relaxed(self, frame):
+        """見失い復帰用に条件を緩めた顔検出。"""
+        if self._face_cascade is None:
+            return None
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape[:2]
+        min_side = min(h, w)
+        min_size = max(16, int(min_side * 0.08))
+
+        faces = self._face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.05,
+            minNeighbors=3,
+            minSize=(min_size, min_size),
+        )
+
+        if faces is None or len(faces) == 0:
+            return None
+
+        x, y, fw, fh = max(faces, key=lambda rect: int(rect[2]) * int(rect[3]))
+        return {"x": int(x), "y": int(y), "w": int(fw), "h": int(fh)}
+
     def _load_face_cascade(self):
-        """Haar cascade を可能な限りロードする。非ASCIIパス問題にも対処。"""
-        file_name = "haarcascade_frontalface_default.xml"
-        candidates = []
+        """同梱の固定Haar cascadeをロードする。"""
+        cascade_path = Path(__file__).resolve().parents[1] / "data" / "cascades" / "haarcascade_frontalface_default.xml"
+        cascade_path_str = str(cascade_path)
+        if not cascade_path.exists():
+            return None, cascade_path_str
 
-        cv2_data = getattr(cv2, "data", None)
-        cascade_base = getattr(cv2_data, "haarcascades", "") if cv2_data is not None else ""
-        if cascade_base:
-            candidates.append(os.path.join(cascade_base, file_name))
+        try:
+            # OpenCV C++は非ASCIIパスを開けないことがあるため、
+            # 固定ファイルをASCII一時パスへコピーしてから読む。
+            tmp_path = os.path.join(tempfile.gettempdir(), "deepface_ver_haarcascade_frontalface_default.xml")
+            shutil.copyfile(cascade_path_str, tmp_path)
 
-        cv2_dir = os.path.dirname(getattr(cv2, "__file__", ""))
-        if cv2_dir:
-            candidates.append(os.path.join(cv2_dir, "data", file_name))
-
-        sample_path = cv2.samples.findFile(file_name, required=False)
-        if sample_path:
-            candidates.append(sample_path)
-
-        # 重複排除しつつ存在する候補だけ残す
-        normalized = []
-        for path in candidates:
-            if path and path not in normalized and os.path.exists(path):
-                normalized.append(path)
-
-        for path in normalized:
-            try:
-                cascade = cv2.CascadeClassifier(path)
-                if not cascade.empty():
-                    return cascade
-            except Exception:
-                pass
-
-            # OpenCV C++が非ASCIIパスを開けない場合に備えてASCII寄りのtempへコピー
-            try:
-                tmp_path = os.path.join(tempfile.gettempdir(), file_name)
-                shutil.copyfile(path, tmp_path)
-                cascade = cv2.CascadeClassifier(tmp_path)
-                if not cascade.empty():
-                    return cascade
-            except Exception:
-                pass
-
-        return None
+            cascade = cv2.CascadeClassifier(tmp_path)
+            if cascade.empty():
+                return None, f"{cascade_path_str} (runtime copy: {tmp_path})"
+            return cascade, f"{cascade_path_str} (runtime copy: {tmp_path})"
+        except Exception as e:
+            return None, f"{cascade_path_str} ({e})"
 
     def _is_valid_face_region(self, region, img_h, img_w):
         if not region or not isinstance(region, dict):
@@ -272,23 +274,30 @@ class EmotionRecognizer_gpt:
         detected_region = self._detect_face_region(small)
 
         if detected_region is None and self._face_cascade is not None:
-            elapsed_ms = (time.perf_counter() - t0) * 1000.0
-            new_result = {
-                "top_emotion": "探し中...",
-                "scores": self._get_empty_scores(),
-                "box": None,
-                "status": "no_face",
-                "reason": "顔検出失敗",
-                "face_detected": False,
-                "emotion_success": False,
-                "latency_ms": round(elapsed_ms, 1),
-                "detector": self._detector_mode,
-                "classifier": "deepface_emotion_skip"
-            }
-            with self._lock:
-                self._last_result = new_result
-                self._result_generation += 1
-            return
+            self._no_face_streak += 1
+            if self._no_face_streak >= self._deepface_fallback_streak:
+                detected_region = self._detect_face_region_relaxed(small)
+                if detected_region is not None:
+                    self._last_detector_used = "opencv_haar_relaxed"
+
+            if detected_region is None:
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                new_result = {
+                    "top_emotion": "探し中...",
+                    "scores": self._get_empty_scores(),
+                    "box": None,
+                    "status": "no_face",
+                    "reason": "顔検出失敗",
+                    "face_detected": False,
+                    "emotion_success": False,
+                    "latency_ms": round(elapsed_ms, 1),
+                    "detector": self._detector_mode,
+                    "classifier": "deepface_emotion_skip"
+                }
+                with self._lock:
+                    self._last_result = new_result
+                    self._result_generation += 1
+                return
 
         try:
             # 1) Haar利用可能: 顔ROIのみを感情分類
@@ -296,6 +305,7 @@ class EmotionRecognizer_gpt:
             if self._face_cascade is not None:
                 if detected_region is None:
                     raise ValueError("face region is None")
+
                 x = detected_region["x"]
                 y = detected_region["y"]
                 w = detected_region["w"]
@@ -317,6 +327,8 @@ class EmotionRecognizer_gpt:
                     "w": int(detected_region["w"]),
                     "h": int(detected_region["h"]),
                 }
+                if self._last_detector_used != "opencv_haar_relaxed":
+                    self._last_detector_used = "opencv_haar"
             else:
                 result = DeepFace.analyze(
                     small,
@@ -355,6 +367,7 @@ class EmotionRecognizer_gpt:
                     "w": int(region["w"]),
                     "h": int(region["h"]),
                 }
+                self._last_detector_used = f"deepface_{self._backend}"
 
             if isinstance(result, list) and len(result) > 0:
                 result = result[0]
@@ -395,12 +408,12 @@ class EmotionRecognizer_gpt:
                 "face_detected": True,
                 "emotion_success": True,
                 "latency_ms": round((time.perf_counter() - t0) * 1000.0, 1),
-                "detector": self._detector_mode,
+                "detector": self._last_detector_used,
                 "classifier": "deepface_emotion_skip"
             }
+            self._no_face_streak = 0
 
         except Exception as e:
-            print(f"[emo_recog] emotion analysis failed: {e}")
             new_result = {
                 "top_emotion": "探し中...",
                 "scores": self._get_empty_scores(),
@@ -410,7 +423,7 @@ class EmotionRecognizer_gpt:
                 "face_detected": True,
                 "emotion_success": False,
                 "latency_ms": round((time.perf_counter() - t0) * 1000.0, 1),
-                "detector": self._detector_mode,
+                "detector": self._last_detector_used,
                 "classifier": "deepface_emotion_skip"
             }
 

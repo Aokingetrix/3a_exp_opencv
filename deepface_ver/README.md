@@ -44,3 +44,8 @@ python -m deepface_ver.scripts.main
 - 依存パッケージは `deepface_ver/requirements.txt` に記載されています。仮想環境内でインストールしてください。
 - 実行は必ず仮想環境を有効化した状態で `python -m deepface_ver.scripts.main` を使ってください。
 - 開発履歴・移行に関するメモは `MIGRATION.md` を参照してください。
+
+## 顔検出モデル（Haar）の固定運用
+- このプロジェクトは `deepface_ver/data/cascades/haarcascade_frontalface_default.xml` を固定で使用します。
+- 起動時に `"[emo_recog] Haar loaded from: ..."` が表示され、この固定パスが出ていれば正常です。
+- ファイルが欠けている場合は起動時にエラーを出して停止します（環境差で別Haarを自動探索しません）。

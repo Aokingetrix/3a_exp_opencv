@@ -171,7 +171,6 @@ def main():
                 dev_code_buffer.clear()
                 emotion_history.clear()
                 smoothed_emotion = "探し中..."
-                print("[main] 開発者モードに入りました")
 
         if developer_mode and r_key_pressed:
             developer_mode = False
@@ -179,7 +178,6 @@ def main():
             game_manager.state = GameState.TITLE
             emotion_history.clear()
             smoothed_emotion = "探し中..."
-            print("[main] 開発者モードを終了しました")
 
         # ─── カメラ取得 + 感情認識結果を更新（game_manager.update の前に！） ───
         #  TITLE/INSTRUCTION 以外のステートではカメラを使う
@@ -193,8 +191,6 @@ def main():
             if current_frame is not None:
                 frame = current_frame
                 recognizer.submit_frame(frame)
-            else:
-                print("カメラフレームの取得に失敗しました。直前のフレームを使用します。")
 
             # 最新の感情認識結果を取得（即座に返る、ブロックしない）
             new_result, gen = recognizer.get_latest_result()
@@ -281,7 +277,6 @@ def main():
         clock.tick(game_manager.fps)
         frame_count += 1
 
-    print("終了します...")
     recognizer.stop()  # 感情認識スレッドを停止
     cam.release()
     pygame.time.wait(300)
