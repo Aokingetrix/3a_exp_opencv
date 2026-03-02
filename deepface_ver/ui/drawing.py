@@ -1,4 +1,5 @@
 import pygame
+from typing import Optional
 from ..core.utils import draw_text, render_image, render_frame
 from .ui_elements import LifeDisplay
 from ..core import settings
@@ -7,30 +8,53 @@ from ..core import highscore
 from .name_select import NameSelector
 
 
-def _draw_text_chip(surface, text: str, right: int, top: int, size: int = 24, text_color=None, bg_color=None):
+def _draw_text_chip(
+    surface,
+    text: str,
+    right: int,
+    top: int,
+    size: int = 24,
+    text_color=None,
+    bg_color=None,
+    chip_width: Optional[int] = None,
+    chip_height: Optional[int] = None,
+):
     if text_color is None:
         text_color = settings.TEXT_DARK
     if bg_color is None:
         bg_color = settings.UI_LABEL_BG
 
-    try:
-        font = pygame.font.Font(settings.FONT_PATH, size)
-    except Exception:
-        font = pygame.font.Font(None, size + 4)
+    current_size = size
+    while current_size >= 14:
+        try:
+            font = pygame.font.Font(settings.FONT_PATH, current_size)
+        except Exception:
+            font = pygame.font.Font(None, current_size + 4)
+        text_surf = font.render(text, True, text_color)
 
-    text_surf = font.render(text, True, text_color)
+        if chip_width is None or chip_height is None:
+            break
+
+        if text_surf.get_width() <= chip_width - 24 and text_surf.get_height() <= chip_height - 12:
+            break
+        current_size -= 1
+
     text_rect = text_surf.get_rect()
-    text_rect.top = top
-    text_rect.right = right - 12
 
-    padding_x = 12
-    padding_y = 8
-    chip_rect = pygame.Rect(
-        text_rect.left - padding_x,
-        text_rect.top - padding_y,
-        text_rect.width + padding_x * 2,
-        text_rect.height + padding_y * 2,
-    )
+    if chip_width is not None and chip_height is not None:
+        chip_rect = pygame.Rect(right - chip_width, top, chip_width, chip_height)
+        text_rect.center = chip_rect.center
+    else:
+        text_rect.top = top
+        text_rect.right = right - 12
+        padding_x = 12
+        padding_y = 8
+        chip_rect = pygame.Rect(
+            text_rect.left - padding_x,
+            text_rect.top - padding_y,
+            text_rect.width + padding_x * 2,
+            text_rect.height + padding_y * 2,
+        )
 
     try:
         pygame.draw.rect(surface, bg_color, chip_rect, border_radius=12)
@@ -97,11 +121,14 @@ def draw_title_screen(surface, background_surface, floating_images):
     box_final_x = (SCREEN_WIDTH - box_total_w) // 2
     box_final_y = 36
     surface.blit(box_surf, (box_final_x, box_final_y))
+    title_box_rect = pygame.Rect(box_final_x, box_final_y, box_total_w, box_total_h)
 
     dev_hint = "DEV: E→N→H"
     hint_surf = font_m.render(dev_hint, True, settings.TEXT_DARK)
     hint_rect = hint_surf.get_rect(right=SCREEN_WIDTH - 20, bottom=SCREEN_HEIGHT - 16)
     surface.blit(hint_surf, hint_rect)
+
+    return title_box_rect
 
 
 def draw_instruction_screen(surface, background_surface, screen_w, screen_h):
@@ -177,7 +204,16 @@ def draw_instruction_screen(surface, background_surface, screen_w, screen_h):
 def draw_game_background(surface, background_surface, frame, result, smoothed_emotion, cam_width):
     surface.blit(background_surface, (0, 0))
     render_frame(surface, frame, result, cam_width, 0)
-    _draw_text_chip(surface, f"あなた: {smoothed_emotion}", surface.get_width() - 20, 148, size=22)
+    right_edge = surface.get_width() - 20
+    _draw_text_chip(
+        surface,
+        f"あなた: {smoothed_emotion}",
+        right_edge,
+        116,
+        size=24,
+        chip_width=300,
+        chip_height=44,
+    )
 
 
 def draw_developer_screen(surface, background_surface, frame, result, cam_width):
@@ -310,7 +346,7 @@ def draw_name_select_screen(surface, background_surface, selector: NameSelector,
     surface.blit(input_surf, (input_rect.x + 12, input_rect.y + 56))
 
 
-def draw_best_lists(surface, screen_w, screen_h, selected_name: str):
+def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect: Optional[pygame.Rect] = None):
     """Draw overall top10 and selected name top3 in a side panel (used on title/result)."""
     try:
         font_m = pygame.font.Font(settings.FONT_PATH, 20)
@@ -321,12 +357,18 @@ def draw_best_lists(surface, screen_w, screen_h, selected_name: str):
     sel_best = highscore.get_best_for_name(selected_name or "名無し", n=3)
 
     panel_w = 320
-    panel_x = screen_w - panel_w - 24
+    panel_x = screen_w - panel_w - 20
     panel_h = 356
-    panel_y = max(20, screen_h - panel_h - 20)
+    panel_y = 20
 
-    shadow = pygame.Rect(panel_x + 4, panel_y + 4, panel_w, panel_h)
     panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+    if avoid_rect and panel.colliderect(avoid_rect.inflate(24, 24)):
+        panel_y = avoid_rect.bottom + 16
+        if panel_y + panel_h > screen_h - 20:
+            panel_y = max(20, avoid_rect.top - panel_h - 16)
+        panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+    shadow = pygame.Rect(panel.x + 4, panel.y + 4, panel_w, panel_h)
     try:
         pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, shadow, border_radius=16)
         pygame.draw.rect(surface, settings.UI_PANEL_BG, panel, border_radius=16)
@@ -334,13 +376,13 @@ def draw_best_lists(surface, screen_w, screen_h, selected_name: str):
         pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, shadow)
         pygame.draw.rect(surface, settings.UI_PANEL_BG, panel)
 
-    draw_text(surface, "全名ベスト10", (panel_x + 16, panel_y + 14), size=18)
+    draw_text(surface, "全名ベスト10", (panel.x + 16, panel.y + 14), size=18)
     for i, rec in enumerate(all_best[:10]):
-        draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel_x + 16, panel_y + 40 + i * 20), size=16)
+        draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel.x + 16, panel.y + 40 + i * 20), size=16)
 
-    draw_text(surface, f"{selected_name} のベスト3", (panel_x + 16, panel_y + 252), size=18)
+    draw_text(surface, f"{selected_name} のベスト3", (panel.x + 16, panel.y + 252), size=18)
     for i, s in enumerate(sel_best[:3]):
-        draw_text(surface, f"{i+1}. {s}", (panel_x + 16, panel_y + 278 + i * 20), size=16)
+        draw_text(surface, f"{i+1}. {s}", (panel.x + 16, panel.y + 278 + i * 20), size=16)
 
 
 def draw_round_start_screen(surface, game_manager, cam_width, cam_height):
@@ -406,11 +448,11 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     try:
         font_m = pygame.font.Font(settings.FONT_PATH, 40)
         font_l = pygame.font.Font(settings.FONT_PATH, 70)
-        font_s = pygame.font.Font(settings.FONT_PATH, 30)
+        font_s = pygame.font.Font(settings.FONT_PATH, 22)
     except Exception:
         font_m = pygame.font.Font(None, 44)
         font_l = pygame.font.Font(None, 74)
-        font_s = pygame.font.Font(None, 34)
+        font_s = pygame.font.Font(None, 26)
 
     panel_center_x = cam_width // 2
     surface.fill(settings.WII_BACKGROUND, (0, 0, cam_width, cam_height))
@@ -478,6 +520,20 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     result_rect = result_surf.get_rect(centerx=panel_center_x, top=280)
     surface.blit(result_surf, result_rect)
 
+    bottom_margin = 16
+    line_gap = 8
+
+    score_surf = font_s.render(f"Score: {game_manager.score}", True, settings.TEXT_DARK)
+    if getattr(game_manager, 'new_personal_best', False):
+        best_surf = font_s.render("ベストスコア！", True, settings.ACCENT_GREEN)
+        best_rect = best_surf.get_rect(centerx=panel_center_x, bottom=cam_height - bottom_margin)
+        score_rect = score_surf.get_rect(centerx=panel_center_x, bottom=best_rect.top - line_gap)
+        surface.blit(score_surf, score_rect)
+        surface.blit(best_surf, best_rect)
+    else:
+        score_rect = score_surf.get_rect(centerx=panel_center_x, bottom=cam_height - bottom_margin)
+        surface.blit(score_surf, score_rect)
+
     if game_manager.lives <= 0:
         nav_text = "[S] 最終結果へ"
     else:
@@ -485,16 +541,9 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
 
     nav_surf = font_m.render(nav_text, True, settings.TEXT_DARK)
     nav_rect = nav_surf.get_rect(centerx=panel_center_x, top=380)
+    if nav_rect.bottom + 10 > score_rect.top:
+        nav_rect.bottom = score_rect.top - 10
     surface.blit(nav_surf, nav_rect)
-
-    score_surf = font_s.render(f"Score: {game_manager.score}", True, settings.TEXT_DARK)
-    score_rect = score_surf.get_rect(centerx=panel_center_x, top=430)
-    surface.blit(score_surf, score_rect)
-
-    if getattr(game_manager, 'new_personal_best', False):
-        best_surf = font_s.render("ベストスコア！", True, settings.ACCENT_GREEN)
-        best_rect = best_surf.get_rect(centerx=panel_center_x, top=464)
-        surface.blit(best_surf, best_rect)
 
 
 def draw_finish_screen(surface, background_surface, game_manager, screen_w, screen_h):
@@ -540,15 +589,42 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
         pass
 
     right_edge = surface.get_width() - 20
+    chip_width = 300
+    chip_height = 44
 
     # プレイヤー名を自分の顔側（右上）に表示
     player_name = getattr(game_manager, 'player_name', '名無し')
-    name_rect = _draw_text_chip(surface, f"名前: {player_name}", right_edge, 12, size=24)
+    name_rect = _draw_text_chip(
+        surface,
+        f"名前: {player_name}",
+        right_edge,
+        12,
+        size=24,
+        chip_width=chip_width,
+        chip_height=chip_height,
+    )
 
     # スコア表示（背景つき）
-    score_rect = _draw_text_chip(surface, f"Score: {game_manager.score}", right_edge, name_rect.bottom + 8, size=24)
+    score_rect = _draw_text_chip(
+        surface,
+        f"Score: {game_manager.score}",
+        right_edge,
+        name_rect.bottom + 8,
+        size=24,
+        chip_width=chip_width,
+        chip_height=chip_height,
+    )
 
     # 新記録フラグ表示（ゲーム中も表示）
     if getattr(game_manager, 'new_personal_best', False):
-        _draw_text_chip(surface, "スコア更新中！", right_edge, score_rect.bottom + 8, size=22, text_color=settings.ACCENT_GREEN)
+        _draw_text_chip(
+            surface,
+            "スコア更新中！",
+            cam_width + 280,
+            16,
+            size=22,
+            text_color=settings.ACCENT_GREEN,
+            chip_width=260,
+            chip_height=chip_height,
+        )
 
