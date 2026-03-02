@@ -3,6 +3,8 @@ from ..core.utils import draw_text, render_image, render_frame
 from .ui_elements import LifeDisplay
 from ..core import settings
 from ..core.game_manager import GameState
+from ..core import highscore
+from .name_select import NameSelector
 
 
 def draw_title_screen(surface, background_surface, floating_images):
@@ -206,6 +208,80 @@ def draw_developer_screen(surface, background_surface, frame, result, cam_width)
     draw_text(surface, "[R] タイトルへ戻る", (20, screen_h - 40), size=24)
 
 
+def draw_name_select_screen(surface, background_surface, selector: NameSelector, screen_w, screen_h):
+    surface.blit(background_surface, (0, 0))
+    try:
+        font_l = pygame.font.Font(settings.FONT_PATH, 60)
+        font_m = pygame.font.Font(settings.FONT_PATH, 28)
+    except Exception:
+        font_l = pygame.font.Font(None, 64)
+        font_m = pygame.font.Font(None, 30)
+
+    box_w = screen_w - 120
+    box_h = 260
+    box_x = 60
+    box_y = (screen_h - box_h) // 2
+
+    # background panel
+    try:
+        panel = pygame.Surface((box_w, box_h), flags=pygame.SRCALPHA)
+        pygame.draw.rect(panel, settings.WII_TRANSLUCENT_BG, panel.get_rect(), border_radius=12)
+    except Exception:
+        panel = pygame.Surface((box_w, box_h))
+        panel.fill(settings.WII_TRANSLUCENT_BG)
+
+    surface.blit(panel, (box_x, box_y))
+
+    title = font_l.render("プレイヤー名を選択", True, settings.TEXT_DARK)
+    surface.blit(title, (box_x + 20, box_y + 14))
+
+    hint = font_m.render("過去の名前を上下で選択、直接入力して Enter", True, settings.TEXT_DARK)
+    surface.blit(hint, (box_x + 20, box_y + 80))
+
+    # recent list
+    recent = selector.recent or []
+    for i, name in enumerate(recent[:6]):
+        y = box_y + 120 + i * 28
+        prefix = "> " if selector.selected_index == i and selector.name == "" else "  "
+        txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
+        surface.blit(txt, (box_x + 30, y))
+
+    # input box
+    input_label = font_m.render("入力: ", True, settings.TEXT_DARK)
+    surface.blit(input_label, (box_x + 300, box_y + 120))
+    try:
+        input_font = pygame.font.Font(settings.FONT_PATH, 28)
+    except Exception:
+        input_font = pygame.font.Font(None, 30)
+    input_text = selector.name or ""
+    input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
+    surface.blit(input_surf, (box_x + 360, box_y + 120))
+
+
+def draw_best_lists(surface, screen_w, screen_h, selected_name: str):
+    """Draw overall top10 and selected name top3 in a side panel (used on title/result)."""
+    try:
+        font_m = pygame.font.Font(settings.FONT_PATH, 20)
+        font_s = pygame.font.Font(settings.FONT_PATH, 16)
+    except Exception:
+        font_m = pygame.font.Font(None, 20)
+        font_s = pygame.font.Font(None, 16)
+
+    all_best = highscore.get_all_names_best(10)
+    sel_best = highscore.get_best_for_name(selected_name or "名無し", n=3)
+
+    panel_w = 260
+    panel_x = screen_w - panel_w - 20
+    panel_y = 20
+    draw_text(surface, "全名ベスト10", (panel_x, panel_y), size=18)
+    for i, rec in enumerate(all_best[:10]):
+        draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel_x, panel_y + 24 + i * 20), size=16)
+
+    draw_text(surface, f"{selected_name} のベスト3", (panel_x, panel_y + 240), size=18)
+    for i, s in enumerate(sel_best[:3]):
+        draw_text(surface, f"{i+1}. {s}", (panel_x, panel_y + 264 + i * 20), size=16)
+
+
 def draw_round_start_screen(surface, game_manager, cam_width, cam_height):
     try:
         font = pygame.font.Font(settings.FONT_PATH, 80)
@@ -374,6 +450,14 @@ def draw_finish_screen(surface, background_surface, game_manager, screen_w, scre
     surface.blit(title_surf, title_surf.get_rect(center=(cx, screen_h // 2 - 80)))
     surface.blit(score_surf, score_surf.get_rect(center=(cx, screen_h // 2)))
     surface.blit(restart_surf, restart_surf.get_rect(center=(cx, screen_h // 2 + 80)))
+    # show personal best update flag if present
+    if getattr(game_manager, 'new_personal_best', False):
+        try:
+            font_flag = pygame.font.Font(settings.FONT_PATH, 28)
+        except Exception:
+            font_flag = pygame.font.Font(None, 28)
+        flag_surf = font_flag.render("スコア更新中！", True, settings.ACCENT_GREEN)
+        surface.blit(flag_surf, flag_surf.get_rect(center=(cx, screen_h // 2 + 120)))
 
 
 def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: LifeDisplay):
@@ -387,4 +471,7 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
 
     # 右上にスコアを表示
     draw_text(surface, f"Score: {game_manager.score}", (cam_width + 10, 60))
+    # プレイヤー名を右上に表示（スコアの上）
+    player_name = getattr(game_manager, 'player_name', '名無し')
+    draw_text(surface, f"{player_name}", (cam_width + 10, 10))
 

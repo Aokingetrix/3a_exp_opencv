@@ -16,8 +16,10 @@ except ImportError as e:
 try:
     from ..core import settings
     from ..core import utils
+    from ..core import highscore
     from ..ui import drawing
     from ..ui.ui_elements import FloatingImage, Timer, LifeDisplay
+    from ..ui.name_select import NameSelector
 except ImportError as e:
     print(f"エラー: 自作モジュールが見つかりません。({e})")
     sys.exit(1)
@@ -102,6 +104,10 @@ def main():
     recognizer = EmotionRecognizer_gpt(scale_factor=0.75, backend="opencv")
     recognizer.start()  # バックグラウンドスレッドで感情認識を開始
     game_manager = GameManager(SCREEN_WIDTH, SCREEN_HEIGHT, sounds)
+    selector = NameSelector()
+    current_player_name = "名無し"
+    game_manager.player_name = current_player_name
+    game_manager.new_personal_best = False
 
     emotion_history = deque(maxlen=settings.RECOGNITION_HISTORY_SIZE)
     smoothed_emotion = "探し中..."
@@ -137,6 +143,7 @@ def main():
 
     current_bgm = None
 
+    prev_state = None
     while running:
         s_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
         for event in pygame.event.get():
@@ -154,10 +161,25 @@ def main():
                 if event.key == K_n: n_key_pressed = True
                 if event.key == K_h: h_key_pressed = True
                 if event.key == K_r: r_key_pressed = True
+            # pass event to selector if active
+            if selector.active:
+                selector.handle_event(event)
         if not running:
             break
 
         state = game_manager.state
+        # handle name selector activation on instruction start
+        if state == GameState.INSTRUCTION and s_key_pressed and not selector.active:
+            selector.start()
+
+        # detect state transitions for highscore update
+        if prev_state != state and state == GameState.GAME_FINISH:
+            try:
+                is_new = highscore.update_if_better(game_manager.player_name if hasattr(game_manager, 'player_name') else "名無し", game_manager.score)
+                game_manager.new_personal_best = bool(is_new)
+            except Exception:
+                game_manager.new_personal_best = False
+        prev_state = state
         if not developer_mode and state == GameState.TITLE:
             if e_key_pressed:
                 dev_code_buffer.append("E")
@@ -186,7 +208,7 @@ def main():
         state = game_manager.state
 
         # TITLE / INSTRUCTION 以外ならカメラ＋感情を更新
-        if developer_mode or state not in (GameState.TITLE, GameState.INSTRUCTION):
+        if developer_mode or state not in (GameState.TITLE, GameState.INSTRUCTION) and not selector.active:
             current_frame = cam.get_frame()
             if current_frame is not None:
                 frame = current_frame
@@ -204,7 +226,7 @@ def main():
                     count = Counter(emotion_history)
                     smoothed_emotion = count.most_common(1)[0][0]
 
-        if not developer_mode:
+        if not developer_mode and not selector.active:
             game_manager.update(
                 smoothed_emotion,
                 s_key_pressed,
@@ -245,8 +267,28 @@ def main():
             frame_count += 1
             continue
 
+        if selector.active:
+            # draw name selection screen
+            drawing.draw_name_select_screen(screen, background_surface, selector, SCREEN_WIDTH, SCREEN_HEIGHT)
+            pygame.display.flip()
+            clock.tick(game_manager.fps)
+            frame_count += 1
+            # handle confirmation
+            if selector.done:
+                name = selector.get_result() or "名無し"
+                current_player_name = name
+                game_manager.player_name = current_player_name
+                highscore.add_recent(current_player_name)
+                # start the game
+                game_manager.start_game()
+                selector.done = False
+            if selector.cancelled:
+                selector.cancelled = False
+            continue
+
         if state == GameState.TITLE:
             drawing.draw_title_screen(screen, background_surface, floating_images)
+            drawing.draw_best_lists(screen, SCREEN_WIDTH, SCREEN_HEIGHT, current_player_name)
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
