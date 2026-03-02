@@ -172,6 +172,23 @@ def main():
         if state == GameState.INSTRUCTION and s_key_pressed and not selector.active:
             selector.start()
 
+        # consume selector result regardless of active flag
+        if selector.done:
+            name = selector.get_result() or "名無し"
+            current_player_name = name
+            game_manager.player_name = current_player_name
+            current_best = highscore.get_best_for_name(current_player_name, n=1)
+            game_manager.personal_best_score = current_best[0] if current_best else 0
+            game_manager.new_personal_best = False
+            highscore.add_recent(current_player_name)
+            game_manager.start_game()
+            selector.done = False
+            selector.active = False
+
+        if selector.cancelled:
+            selector.cancelled = False
+            selector.active = False
+
         # detect state transitions for highscore update
         if prev_state != state and state == GameState.GAME_FINISH:
             try:
@@ -180,6 +197,7 @@ def main():
             except Exception:
                 game_manager.new_personal_best = False
         prev_state = state
+
         if not developer_mode and state == GameState.TITLE:
             if e_key_pressed:
                 dev_code_buffer.append("E")
@@ -273,17 +291,6 @@ def main():
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
-            # handle confirmation
-            if selector.done:
-                name = selector.get_result() or "名無し"
-                current_player_name = name
-                game_manager.player_name = current_player_name
-                highscore.add_recent(current_player_name)
-                # start the game
-                game_manager.start_game()
-                selector.done = False
-            if selector.cancelled:
-                selector.cancelled = False
             continue
 
         if state == GameState.TITLE:

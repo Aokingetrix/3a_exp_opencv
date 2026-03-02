@@ -43,6 +43,7 @@ class GameManager:
         # プレイヤー名と個人ベストフラグを明示的に初期化
         self.player_name: str = "名無し"
         self.new_personal_best: bool = False
+        self.personal_best_score: int = 0
 
         self.npc_emotions: List[str] = []
 
@@ -214,5 +215,8 @@ class GameManager:
             self.round_duration_ms *= 0.95
             self.round_result_text = "成功!"
             self.sounds["success"].play()
+
+        # ラウンド確定時にのみベスト更新判定を行う
+        self.new_personal_best = self.score > self.personal_best_score
         
         self.state = GameState.RESULT
