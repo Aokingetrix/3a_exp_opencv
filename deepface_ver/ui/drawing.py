@@ -119,14 +119,9 @@ def draw_title_screen(surface, background_surface, floating_images):
     box_surf.blit(start_text_surf, start_rect)
 
     box_final_x = (SCREEN_WIDTH - box_total_w) // 2
-    box_final_y = 36
+    box_final_y = (SCREEN_HEIGHT - box_total_h) // 2
     surface.blit(box_surf, (box_final_x, box_final_y))
     title_box_rect = pygame.Rect(box_final_x, box_final_y, box_total_w, box_total_h)
-
-    dev_hint = "DEV: E→N→H"
-    hint_surf = font_m.render(dev_hint, True, settings.TEXT_DARK)
-    hint_rect = hint_surf.get_rect(right=SCREEN_WIDTH - 20, bottom=SCREEN_HEIGHT - 16)
-    surface.blit(hint_surf, hint_rect)
 
     return title_box_rect
 
@@ -359,14 +354,9 @@ def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect:
     panel_w = 320
     panel_x = screen_w - panel_w - 20
     panel_h = 356
-    panel_y = 20
+    panel_y = (screen_h - panel_h) // 2
 
     panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-    if avoid_rect and panel.colliderect(avoid_rect.inflate(24, 24)):
-        panel_y = avoid_rect.bottom + 16
-        if panel_y + panel_h > screen_h - 20:
-            panel_y = max(20, avoid_rect.top - panel_h - 16)
-        panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
 
     shadow = pygame.Rect(panel.x + 4, panel.y + 4, panel_w, panel_h)
     try:

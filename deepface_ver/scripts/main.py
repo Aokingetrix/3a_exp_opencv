@@ -295,7 +295,7 @@ def main():
 
         if state == GameState.TITLE:
             title_rect = drawing.draw_title_screen(screen, background_surface, floating_images)
-            drawing.draw_best_lists(screen, SCREEN_WIDTH, SCREEN_HEIGHT, current_player_name, avoid_rect=title_rect)
+           # drawing.draw_best_lists(screen, SCREEN_WIDTH, SCREEN_HEIGHT, current_player_name, avoid_rect=title_rect)
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
