@@ -1,7 +1,7 @@
 # main moved into scripts (imports updated to package paths)
 import sys
 import pygame
-from pygame.locals import KEYDOWN, K_ESCAPE, K_q, K_s, K_e, K_n, K_h, K_r
+from pygame.locals import KEYDOWN, K_ESCAPE, K_q, K_s, K_b, K_e, K_n, K_h, K_r
 from collections import deque, Counter
 import random
 import pygame.mixer
@@ -145,7 +145,7 @@ def main():
 
     prev_state = None
     while running:
-        s_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
+        s_key_pressed = b_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -156,6 +156,9 @@ def main():
                     break
                 if event.key == K_s:
                     s_key_pressed = True
+                    sounds["select"].play()
+                if event.key == K_b:
+                    b_key_pressed = True
                     sounds["select"].play()
                 if event.key == K_e: e_key_pressed = True
                 if event.key == K_n: n_key_pressed = True
@@ -168,8 +171,12 @@ def main():
             break
 
         state = game_manager.state
-        # handle name selector activation on instruction start
-        if state == GameState.INSTRUCTION and s_key_pressed and not selector.active:
+        # handle name selector activation on emotion_map or skip selection + E key
+        if state == GameState.EMOTION_MAP and s_key_pressed and not selector.active:
+            selector.start()
+        if state == GameState.SKIP_SELECTION and e_key_pressed and not selector.active:
+            # スキップ選択: 説明なしで名前選択へ
+            game_manager.skip_instruction = True
             selector.start()
 
         # consume selector result regardless of active flag
@@ -220,13 +227,15 @@ def main():
             smoothed_emotion = "探し中..."
 
         # ─── カメラ取得 + 感情認識結果を更新（game_manager.update の前に！） ───
-        #  TITLE/INSTRUCTION 以外のステートではカメラを使う
-        #  （この下で TITLE/INSTRUCTION は continue するのでここでは気にしなくてよい）
-
+        #  新規状態では名前選択含むまで感情認識不要
         state = game_manager.state
-
-        # TITLE / INSTRUCTION 以外ならカメラ＋感情を更新
-        if developer_mode or state not in (GameState.TITLE, GameState.INSTRUCTION) and not selector.active:
+        
+        # ROUND_START 以降ならカメラ＋感情を更新
+        skip_emotion_states = [
+            GameState.TITLE, GameState.SKIP_SELECTION, GameState.INSTRUCTION,
+            GameState.EMOTION_MAP, GameState.COUNTDOWN
+        ]
+        if developer_mode or (state not in skip_emotion_states and not selector.active):
             current_frame = cam.get_frame()
             if current_frame is not None:
                 frame = current_frame
@@ -248,6 +257,7 @@ def main():
             game_manager.update(
                 smoothed_emotion,
                 s_key_pressed,
+                b_key_pressed,
                 e_key_pressed,
                 n_key_pressed,
                 h_key_pressed,
@@ -257,19 +267,16 @@ def main():
         state = game_manager.state
         is_bgm_playing = pygame.mixer.music.get_busy()
 
+        # BGM 切り替え
         if developer_mode:
             if current_bgm != "title" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["title"])
                 current_bgm = "title"
-        elif state == GameState.TITLE:
+        elif state in (GameState.TITLE, GameState.SKIP_SELECTION, GameState.INSTRUCTION, GameState.EMOTION_MAP):
             if current_bgm != "title" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["title"])
                 current_bgm = "title"
-        elif state == GameState.INSTRUCTION:
-            if current_bgm != "title" or not is_bgm_playing:
-                utils.play_bgm(settings.BGM_PATHS["title"])
-                current_bgm = "title"
-        elif (state == GameState.PLAYING or state == GameState.RESULT or state == GameState.ROUND_START):
+        elif state in (GameState.COUNTDOWN, GameState.PLAYING, GameState.RESULT, GameState.ROUND_START):
             if current_bgm != "play" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["play"])
                 current_bgm = "play"
@@ -295,7 +302,12 @@ def main():
 
         if state == GameState.TITLE:
             title_rect = drawing.draw_title_screen(screen, background_surface, floating_images)
-           # drawing.draw_best_lists(screen, SCREEN_WIDTH, SCREEN_HEIGHT, current_player_name, avoid_rect=title_rect)
+            pygame.display.flip()
+            clock.tick(game_manager.fps)
+            frame_count += 1
+            continue
+        elif state == GameState.SKIP_SELECTION:
+            drawing.draw_skip_selection_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
@@ -303,6 +315,19 @@ def main():
         elif state == GameState.INSTRUCTION:
             drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
             drawing.draw_instruction_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
+            pygame.display.flip()
+            clock.tick(game_manager.fps)
+            frame_count += 1
+            continue
+        elif state == GameState.EMOTION_MAP:
+            drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
+            drawing.draw_emotion_map_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
+            pygame.display.flip()
+            clock.tick(game_manager.fps)
+            frame_count += 1
+            continue
+        elif state == GameState.COUNTDOWN:
+            drawing.draw_countdown_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
