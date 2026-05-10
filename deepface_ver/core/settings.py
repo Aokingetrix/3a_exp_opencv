@@ -75,6 +75,7 @@ CLOCK_IMAGE_PATH = asset_path("clock.png")
 HEART_IMAGE_PATH = asset_path("heart.png")
 NO_EXP_IMAGE_PATH = asset_path("no_exp.png")
 QUESTION_IMAGE_PATH = asset_path("question.png")
+HUMAN_FACE_IMAGE_PATH = asset_path("human_face.png")
 EMOTION_IMAGE_PATHS = {
     "ニコニコ": asset_path("happy.png"),
     "シクシク": asset_path("cry.png"),

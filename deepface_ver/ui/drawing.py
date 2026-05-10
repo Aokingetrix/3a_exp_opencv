@@ -180,54 +180,97 @@ def draw_emotion_map_screen(surface, background_surface, game_manager, screen_w,
     surface.blit(background_surface, (0, 0))
     
     try:
-        font_l = pygame.font.Font(settings.FONT_PATH, 48)
-        font_m = pygame.font.Font(settings.FONT_PATH, 32)
+        font_l = pygame.font.Font(settings.FONT_PATH, 46)
+        font_m = pygame.font.Font(settings.FONT_PATH, 30)
+        font_s = pygame.font.Font(settings.FONT_PATH, 22)
     except Exception:
-        font_l = pygame.font.Font(None, 52)
-        font_m = pygame.font.Font(None, 36)
+        font_l = pygame.font.Font(None, 50)
+        font_m = pygame.font.Font(None, 34)
+        font_s = pygame.font.Font(None, 26)
     
-    title = font_l.render("対応関係", True, settings.TEXT_DARK)
-    desc = font_m.render("あまのじゃくの顔の反対の顔をしてください", True, settings.TEXT_DARK)
-    
-    title_y = 40
-    surface.blit(title, (screen_w // 2 - title.get_width() // 2, title_y))
-    
-    desc_y = title_y + title.get_height() + 30
-    surface.blit(desc, (screen_w // 2 - desc.get_width() // 2, desc_y))
-    
-    # 感情対応表示: 左にNPC感情、右にプレイヤーが示すべき感情
-    emotions_map = {
-        "ニコニコ": "シクシク",
-        "シクシク": "ニコニコ",
-        "ムカムカ": "ニコニコ",
-        "ビックリ": "シーン"
-    }
-    
-    emotion_display_y = desc_y + desc.get_height() + 60
-    col_width = screen_w // 2
-    
-    npc_label = font_m.render("あまのじゃく", True, settings.TEXT_DARK)
-    player_label = font_m.render("あなた", True, settings.TEXT_DARK)
-    
-    surface.blit(npc_label, (col_width // 2 - npc_label.get_width() // 2, emotion_display_y))
-    surface.blit(player_label, (col_width + col_width // 2 - player_label.get_width() // 2, emotion_display_y))
-    
-    emotion_display_y += npc_label.get_height() + 20
-    
-    for emotion, opposite in emotions_map.items():
-        # NPC感情表示
-        npc_emo_surf = font_m.render(emotion, True, settings.ACCENT_BLUE)
-        surface.blit(npc_emo_surf, (col_width // 2 - npc_emo_surf.get_width() // 2, emotion_display_y))
-        
-        # プレイヤー感情表示
-        player_emo_surf = font_m.render(opposite, True, settings.ACCENT_GREEN)
-        surface.blit(player_emo_surf, (col_width + col_width // 2 - player_emo_surf.get_width() // 2, emotion_display_y))
-        
-        emotion_display_y += npc_emo_surf.get_height() + 20
-    
-    # 下部に「次へ」指示
+    title_surf = font_l.render("対応関係", True, settings.TEXT_DARK)
+    desc_surf = font_m.render("左のあまのじゃくの表情と、右の人間の顔を対応させてね", True, settings.TEXT_DARK)
+
+    title_y = 30
+    surface.blit(title_surf, title_surf.get_rect(centerx=screen_w // 2, top=title_y))
+
+    desc_y = title_y + title_surf.get_height() + 18
+    surface.blit(desc_surf, desc_surf.get_rect(centerx=screen_w // 2, top=desc_y))
+
+    content_top = desc_y + desc_surf.get_height() + 28
+    bottom_reserved = 92
+    content_bottom = screen_h - bottom_reserved
+    content_h = max(240, content_bottom - content_top)
+
+    half_w = screen_w // 2
+    left_x = 40
+    left_w = half_w - 60
+    right_x = half_w + 20
+    right_w = half_w - 60
+
+    left_panel = pygame.Rect(left_x, content_top, left_w, content_h)
+    right_panel = pygame.Rect(right_x, content_top, right_w, content_h)
+
+    try:
+        pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, left_panel, border_radius=20)
+        pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, right_panel, border_radius=20)
+    except TypeError:
+        pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, left_panel)
+        pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, right_panel)
+
+    npc_title = font_m.render("あまのじゃく", True, settings.TEXT_DARK)
+    human_title = font_m.render("あなた", True, settings.TEXT_DARK)
+    surface.blit(npc_title, npc_title.get_rect(centerx=left_panel.centerx, top=left_panel.y + 14))
+    surface.blit(human_title, human_title.get_rect(centerx=right_panel.centerx, top=right_panel.y + 14))
+
+    emotion_grid_top = left_panel.y + 70
+    emotion_grid_w = left_panel.w - 40
+    cell_w = (emotion_grid_w - 16) // 2
+    cell_h = 118
+    cell_gap_x = 16
+    cell_gap_y = 16
+
+    emotion_items = [
+        ("ニコニコ", settings.ACCENT_BLUE),
+        ("シクシク", settings.ACCENT_BLUE),
+        ("ムカムカ", settings.ACCENT_BLUE),
+        ("ビックリ", settings.ACCENT_BLUE),
+    ]
+
+    for index, (emotion, color) in enumerate(emotion_items):
+        row = index // 2
+        col = index % 2
+        cell_x = left_panel.x + 20 + col * (cell_w + cell_gap_x)
+        cell_y = emotion_grid_top + row * (cell_h + cell_gap_y)
+        image_box_h = 78
+        image_box = pygame.Rect(cell_x, cell_y, cell_w, image_box_h)
+
+        try:
+            emotion_img_path = game_manager.emotion_images.get(emotion, settings.QUESTION_IMAGE_PATH)
+            render_image(surface, emotion_img_path, image_box.x, image_box.y, image_box.w, image_box.h, fill_bg=False)
+        except Exception:
+            pygame.draw.rect(surface, (0, 0, 0), image_box)
+
+        label_surf = font_s.render(emotion, True, color)
+        surface.blit(label_surf, label_surf.get_rect(centerx=image_box.centerx, top=image_box.bottom + 8))
+
+    human_box_w = right_panel.w - 80
+    human_box_h = min(260, content_h - 110)
+    human_box_x = right_panel.x + (right_panel.w - human_box_w) // 2
+    human_box_y = right_panel.y + 74
+    human_box = pygame.Rect(human_box_x, human_box_y, human_box_w, human_box_h)
+
+    try:
+        render_image(surface, settings.HUMAN_FACE_IMAGE_PATH, human_box.x, human_box.y, human_box.w, human_box.h, fill_bg=False)
+    except Exception:
+        pygame.draw.rect(surface, (0, 0, 0), human_box)
+
+    human_hint = font_s.render("写真は data/ に追加", True, settings.TEXT_DARK)
+    surface.blit(human_hint, human_hint.get_rect(centerx=right_panel.centerx, top=human_box.bottom + 12))
+
     next_text = font_m.render("[S] 名前選択へ", True, settings.TEXT_DARK)
-    surface.blit(next_text, (screen_w // 2 - next_text.get_width() // 2, screen_h - 80))
+    next_rect = next_text.get_rect(centerx=screen_w // 2, bottom=screen_h - 22)
+    surface.blit(next_text, next_rect)
 
 
 def draw_countdown_screen(surface, background_surface, game_manager, screen_w, screen_h):
@@ -648,6 +691,33 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     result_rect = result_surf.get_rect(centerx=panel_center_x, top=320)
     surface.blit(result_surf, result_rect)
 
+    if game_manager.lives <= 0:
+        nav_text = "[S] 最終結果へ"
+    else:
+        nav_text = "[S] 次のラウンドへ"
+
+    nav_font = font_m
+    nav_max_width = panel_center_x - 36
+    nav_size = 40
+    while nav_size >= 22:
+        try:
+            nav_font_try = pygame.font.Font(settings.FONT_PATH, nav_size)
+        except Exception:
+            nav_font_try = pygame.font.Font(None, nav_size + 4)
+        nav_surf_try = nav_font_try.render(nav_text, True, settings.TEXT_DARK)
+        if nav_surf_try.get_width() <= nav_max_width:
+            nav_font = nav_font_try
+            nav_surf = nav_surf_try
+            break
+        nav_size -= 1
+    else:
+        nav_surf = nav_font.render(nav_text, True, settings.TEXT_DARK)
+
+    nav_rect = nav_surf.get_rect()
+    nav_rect.right = cam_width - 20
+    nav_rect.bottom = cam_height - 18
+    surface.blit(nav_surf, nav_rect)
+
     bottom_margin = 16
     line_gap = 8
 
@@ -661,18 +731,6 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     else:
         score_rect = score_surf.get_rect(centerx=panel_center_x, bottom=cam_height - bottom_margin)
         surface.blit(score_surf, score_rect)
-
-    if game_manager.lives <= 0:
-        nav_text = "[S] 最終結果へ"
-    else:
-        nav_text = "[S] 次のラウンドへ"
-
-    nav_surf = font_m.render(nav_text, True, settings.TEXT_DARK)
-    nav_rect = nav_surf.get_rect(centerx=panel_center_x, top=360)
-    # score_rect との重なりを確実に回避
-    if nav_rect.bottom + 20 > score_rect.top:
-        nav_rect.bottom = score_rect.top - 20
-    surface.blit(nav_surf, nav_rect)
 
 
 def draw_finish_screen(surface, background_surface, game_manager, screen_w, screen_h):
