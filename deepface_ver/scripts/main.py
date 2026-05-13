@@ -156,10 +156,12 @@ def main():
                     break
                 if event.key == K_s:
                     s_key_pressed = True
-                    sounds["select"].play()
+                    if not selector.active:#名前選択時はセレクタに渡すだけで効果音は鳴らさない
+                        sounds["select"].play()
                 if event.key == K_b:
                     b_key_pressed = True
-                    sounds["select"].play()
+                    if not selector.active: #名前選択時はセレクタに渡すだけで効果音は鳴らさない
+                        sounds["select"].play()
                 if event.key == K_e: e_key_pressed = True
                 if event.key == K_n: n_key_pressed = True
                 if event.key == K_h: h_key_pressed = True
