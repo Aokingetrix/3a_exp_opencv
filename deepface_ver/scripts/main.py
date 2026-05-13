@@ -170,6 +170,10 @@ def main():
         if not running:
             break
 
+        if selector.active and b_key_pressed:
+            selector.cancelled = True
+            selector.active = False
+
         state = game_manager.state
         # handle name selector activation on emotion_map or skip selection + E key
         if state == GameState.EMOTION_MAP and s_key_pressed and not selector.active:
