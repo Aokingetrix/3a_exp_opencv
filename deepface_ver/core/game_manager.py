@@ -18,18 +18,27 @@ class GameState:
     RESULT = "result"
     GAME_FINISH = "game_finish"
 
-
-# 固定遷移テーブル: 各state で B キー（戻る）が遷移する先
+# --- 変更: プレイ中の誤爆キャンセルを防ぐため、安全な画面からの遷移のみを残す ---
+# 固定遷移テーブル: 各state で キャンセル（戻る）操作が遷移する先
 BACK_TRANSITIONS = {
     GameState.SKIP_SELECTION: GameState.TITLE,
     GameState.INSTRUCTION: GameState.SKIP_SELECTION,
     GameState.EMOTION_MAP: GameState.INSTRUCTION,
     GameState.READY: GameState.TITLE,
-    GameState.ROUND_START: GameState.TITLE,
-    GameState.PLAYING: GameState.TITLE,
-    GameState.RESULT: GameState.TITLE,
     GameState.GAME_FINISH: GameState.TITLE,
 }
+
+# # 固定遷移テーブル: 各state で B キー（戻る）が遷移する先
+# BACK_TRANSITIONS = {
+#     GameState.SKIP_SELECTION: GameState.TITLE,
+#     GameState.INSTRUCTION: GameState.SKIP_SELECTION,
+#     GameState.EMOTION_MAP: GameState.INSTRUCTION,
+#     GameState.READY: GameState.TITLE,
+#     GameState.ROUND_START: GameState.TITLE,
+#     GameState.PLAYING: GameState.TITLE,
+#     GameState.RESULT: GameState.TITLE,
+#     GameState.GAME_FINISH: GameState.TITLE,
+# }
 
 class GameManager:
     def __init__(self, screen_width: int, screen_height: int, sounds: Dict[str, Any]) -> None:
@@ -123,15 +132,16 @@ class GameManager:
             self.npc_emotions = random.sample(self.emotions_for_npc, 2)
         else:
             self.npc_emotions = random.sample(self.emotions_for_npc, 3)
-
-    def update(self, current_player_emotion: str, key_pressed_s: bool, key_pressed_b: bool, key_pressed_e: bool, key_pressed_n: bool, key_pressed_h: bool, key_pressed_r: bool) -> None:
+        
+    # --- 変更: 引数 key_pressed_b を key_pressed_cancel にリネーム ---
+    def update(self, current_player_emotion: str, key_pressed_s: bool, key_pressed_cancel: bool, key_pressed_e: bool, key_pressed_n: bool, key_pressed_h: bool, key_pressed_r: bool) -> None:
         """
         メイン更新ロジック。画面遷移・ゲーム進行を制御する。
         Args:
-            key_pressed_b: B キー押下（戻る操作）
+            key_pressed_cancel: キャンセル（戻る）操作
         """
-        # ===== B キー（戻る）: 固定遷移テーブルに従う =====
-        if key_pressed_b:
+        # ===== キャンセル操作: 固定遷移テーブルに従う =====
+        if key_pressed_cancel:
             back_state = BACK_TRANSITIONS.get(self.state)
             if back_state:
                 self.state = back_state
@@ -146,25 +156,20 @@ class GameManager:
         # ===== SKIP_SELECTION: 説明スキップ選択 =====
         if self.state == GameState.SKIP_SELECTION:
             if key_pressed_s:
-                # 説明を見る: INSTRUCTION へ
                 self.skip_instruction = False
                 self.state = GameState.INSTRUCTION
                 return
-            # E キー (Skip): 実装者は後でこの state 持続中に NameSelector を外部で start させる
-            # (main.py で処理)
+            # E キー (Skip)の制御は main.py 側にあり
         
         # ===== INSTRUCTION: 説明画面 =====
         if self.state == GameState.INSTRUCTION:
             if key_pressed_s:
-                # 説明 → 対応関係明示
                 self.state = GameState.EMOTION_MAP
                 return
         
         # ===== EMOTION_MAP: 感情対応関係明示画面 =====
         if self.state == GameState.EMOTION_MAP:
             if key_pressed_s:
-                # 対応関係確認後、名前選択へ進む指示
-                # (main.py でこの遷移を見て NameSelector を start させる)
                 pass
         
         # ===== COUNTDOWN: 3-2-1 カウントダウン =====
@@ -172,7 +177,6 @@ class GameManager:
             current_time = pygame.time.get_ticks()
             elapsed = current_time - self.countdown_start_time
             if elapsed >= self.countdown_duration_ms:
-                # ゲーム開始へ
                 self.start_new_round()
                 return
         
@@ -186,14 +190,11 @@ class GameManager:
         if key_pressed_s:
             if self.state == GameState.RESULT:
                 if self.lives <= 0:
-                    # ゲーム終了へ
                     self.state = GameState.GAME_FINISH
                     return
-                # 次ラウンドへ
                 self.start_new_round()
                 return
             elif self.state == GameState.GAME_FINISH:
-                # もう一度遊ぶ: スキップ選択へ戻る
                 self.state = GameState.SKIP_SELECTION
                 return
         
@@ -206,6 +207,89 @@ class GameManager:
         
         elif self.state == GameState.JUDGE:
             self.judge()
+    
+    # def update(self, current_player_emotion: str, key_pressed_s: bool, key_pressed_b: bool, key_pressed_e: bool, key_pressed_n: bool, key_pressed_h: bool, key_pressed_r: bool) -> None:
+    #     """
+    #     メイン更新ロジック。画面遷移・ゲーム進行を制御する。
+    #     Args:
+    #         key_pressed_b: B キー押下（戻る操作）
+    #     """
+    #     # ===== B キー（戻る）: 固定遷移テーブルに従う =====
+    #     if key_pressed_b:
+    #         back_state = BACK_TRANSITIONS.get(self.state)
+    #         if back_state:
+    #             self.state = back_state
+    #             return
+        
+    #     # ===== TITLE → SKIP_SELECTION =====
+    #     if self.state == GameState.TITLE:
+    #         if key_pressed_s:
+    #             self.state = GameState.SKIP_SELECTION
+    #             return
+        
+    #     # ===== SKIP_SELECTION: 説明スキップ選択 =====
+    #     if self.state == GameState.SKIP_SELECTION:
+    #         if key_pressed_s:
+    #             # 説明を見る: INSTRUCTION へ
+    #             self.skip_instruction = False
+    #             self.state = GameState.INSTRUCTION
+    #             return
+    #         # E キー (Skip): 実装者は後でこの state 持続中に NameSelector を外部で start させる
+    #         # (main.py で処理)
+        
+    #     # ===== INSTRUCTION: 説明画面 =====
+    #     if self.state == GameState.INSTRUCTION:
+    #         if key_pressed_s:
+    #             # 説明 → 対応関係明示
+    #             self.state = GameState.EMOTION_MAP
+    #             return
+        
+    #     # ===== EMOTION_MAP: 感情対応関係明示画面 =====
+    #     if self.state == GameState.EMOTION_MAP:
+    #         if key_pressed_s:
+    #             # 対応関係確認後、名前選択へ進む指示
+    #             # (main.py でこの遷移を見て NameSelector を start させる)
+    #             pass
+        
+    #     # ===== COUNTDOWN: 3-2-1 カウントダウン =====
+    #     if self.state == GameState.COUNTDOWN:
+    #         current_time = pygame.time.get_ticks()
+    #         elapsed = current_time - self.countdown_start_time
+    #         if elapsed >= self.countdown_duration_ms:
+    #             # ゲーム開始へ
+    #             self.start_new_round()
+    #             return
+        
+    #     # ===== R キー: GAME_FINISH → TITLE =====
+    #     if key_pressed_r:
+    #         if self.state == GameState.GAME_FINISH:
+    #             self.state = GameState.TITLE
+    #             return
+        
+    #     # ===== S キー: ゲーム進行中の状態遷移 =====
+    #     if key_pressed_s:
+    #         if self.state == GameState.RESULT:
+    #             if self.lives <= 0:
+    #                 # ゲーム終了へ
+    #                 self.state = GameState.GAME_FINISH
+    #                 return
+    #             # 次ラウンドへ
+    #             self.start_new_round()
+    #             return
+    #         elif self.state == GameState.GAME_FINISH:
+    #             # もう一度遊ぶ: スキップ選択へ戻る
+    #             self.state = GameState.SKIP_SELECTION
+    #             return
+        
+    #     # ===== ゲーム進行中の自動遷移 =====
+    #     if self.state == GameState.ROUND_START:
+    #         self._transition_from_round_start()
+        
+    #     if self.state == GameState.PLAYING:
+    #         self._update_playing(current_player_emotion)
+        
+    #     elif self.state == GameState.JUDGE:
+    #         self.judge()
 
     def _transition_from_round_start(self) -> None:
         current_time = pygame.time.get_ticks()

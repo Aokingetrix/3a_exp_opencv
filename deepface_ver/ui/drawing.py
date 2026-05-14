@@ -653,7 +653,76 @@ def draw_developer_screen(surface, background_surface, frame, result, cam_width)
     draw_text(surface, "[R] タイトルへ戻る", (20, screen_h - 40), size=24)
 
 
-def draw_name_select_screen(surface, background_surface, selector: NameSelector, screen_w, screen_h):
+# def draw_name_select_screen(surface, background_surface, selector: NameSelector, screen_w, screen_h):
+#     surface.blit(background_surface, (0, 0))
+#     try:
+#         font_l = pygame.font.Font(settings.FONT_PATH, 60)
+#         font_m = pygame.font.Font(settings.FONT_PATH, 28)
+#         font_s = pygame.font.Font(settings.FONT_PATH, 22)
+#     except Exception:
+#         font_l = pygame.font.Font(None, 64)
+#         font_m = pygame.font.Font(None, 30)
+#         font_s = pygame.font.Font(None, 26)
+
+#     box_w = screen_w - 120
+#     box_h = 320
+#     box_x = 60
+#     box_y = (screen_h - box_h) // 2
+
+#     # background panel
+#     try:
+#         panel = pygame.Surface((box_w, box_h), flags=pygame.SRCALPHA)
+#         pygame.draw.rect(panel, settings.WII_TRANSLUCENT_BG, panel.get_rect(), border_radius=12)
+#     except Exception:
+#         panel = pygame.Surface((box_w, box_h))
+#         panel.fill(settings.WII_TRANSLUCENT_BG)
+
+#     surface.blit(panel, (box_x, box_y))
+
+#     title = font_l.render("プレイヤー名を選択", True, settings.TEXT_DARK)
+#     surface.blit(title, (box_x + 20, box_y + 14))
+
+#     hint = font_s.render("↑↓: 過去名を選択 / →: 入力ウィンドウ / Enter: 決定", True, settings.TEXT_DARK)
+#     surface.blit(hint, (box_x + 20, box_y + 80))
+
+#     list_rect = pygame.Rect(box_x + 20, box_y + 116, box_w // 2 - 30, 180)
+#     input_rect = pygame.Rect(box_x + box_w // 2 + 10, box_y + 116, box_w // 2 - 30, 180)
+#     try:
+#         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect, border_radius=12)
+#         pygame.draw.rect(surface, settings.UI_LABEL_BG, input_rect, border_radius=12)
+#     except TypeError:
+#         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect)
+#         pygame.draw.rect(surface, settings.UI_LABEL_BG, input_rect)
+
+#     if selector.input_mode:
+#         pygame.draw.rect(surface, settings.ACCENT_BLUE, input_rect, 3, border_radius=12)
+#     else:
+#         pygame.draw.rect(surface, settings.ACCENT_BLUE, list_rect, 3, border_radius=12)
+
+#     list_title = font_s.render("過去の名前", True, settings.TEXT_DARK)
+#     input_title = font_s.render("新しい名前入力", True, settings.TEXT_DARK)
+#     surface.blit(list_title, (list_rect.x + 10, list_rect.y + 8))
+#     surface.blit(input_title, (input_rect.x + 10, input_rect.y + 8))
+
+#     # recent list
+#     recent = selector.recent or []
+#     for i, name in enumerate(recent[:6]):
+#         y = list_rect.y + 44 + i * 36
+#         prefix = "> " if (not selector.input_mode and selector.selected_index == i) else "  "
+#         txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
+#         surface.blit(txt, (list_rect.x + 12, y))
+
+#     try:
+#         input_font = pygame.font.Font(settings.FONT_PATH, 28)
+#     except Exception:
+#         input_font = pygame.font.Font(None, 30)
+#     input_text = selector.name or ""
+#     input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
+#     surface.blit(input_surf, (input_rect.x + 12, input_rect.y + 56))
+#     _draw_back_hint(surface, left=20, bottom=18, size=22)
+
+def draw_name_select_screen(surface, background_surface, selector, screen_w, screen_h):
+    """GUIエディタから生成された名前選択画面 (絶対座標ベース)"""
     surface.blit(background_surface, (0, 0))
     try:
         font_l = pygame.font.Font(settings.FONT_PATH, 60)
@@ -664,29 +733,26 @@ def draw_name_select_screen(surface, background_surface, selector: NameSelector,
         font_m = pygame.font.Font(None, 30)
         font_s = pygame.font.Font(None, 26)
 
-    box_w = screen_w - 120
-    box_h = 320
-    box_x = 60
-    box_y = (screen_h - box_h) // 2
-
-    # background panel
+    # 1. 全体背景パネル
+    main_panel_rect = pygame.Rect(60, 80, 1160, 320)
     try:
-        panel = pygame.Surface((box_w, box_h), flags=pygame.SRCALPHA)
-        pygame.draw.rect(panel, settings.WII_TRANSLUCENT_BG, panel.get_rect(), border_radius=12)
+        panel_surf = pygame.Surface((main_panel_rect.w, main_panel_rect.h), flags=pygame.SRCALPHA)
+        pygame.draw.rect(panel_surf, settings.WII_TRANSLUCENT_BG, panel_surf.get_rect(), border_radius=12)
+        surface.blit(panel_surf, (main_panel_rect.x, main_panel_rect.y))
     except Exception:
-        panel = pygame.Surface((box_w, box_h))
-        panel.fill(settings.WII_TRANSLUCENT_BG)
+        pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, main_panel_rect, border_radius=12)
 
-    surface.blit(panel, (box_x, box_y))
-
+    # 2. テキスト群
     title = font_l.render("プレイヤー名を選択", True, settings.TEXT_DARK)
-    surface.blit(title, (box_x + 20, box_y + 14))
+    surface.blit(title, (293.59375, 97.01953125))
 
     hint = font_s.render("↑↓: 過去名を選択 / →: 入力ウィンドウ / Enter: 決定", True, settings.TEXT_DARK)
-    surface.blit(hint, (box_x + 20, box_y + 80))
+    surface.blit(hint, (349.15625, 411.5859375))
 
-    list_rect = pygame.Rect(box_x + 20, box_y + 116, box_w // 2 - 30, 180)
-    input_rect = pygame.Rect(box_x + box_w // 2 + 10, box_y + 116, box_w // 2 - 30, 180)
+    # 3. リスト枠・入力枠
+    list_rect = pygame.Rect(80, 196, 550, 180)
+    input_rect = pygame.Rect(650.00390625, 195.078125, 550, 180)
+    
     try:
         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect, border_radius=12)
         pygame.draw.rect(surface, settings.UI_LABEL_BG, input_rect, border_radius=12)
@@ -694,32 +760,39 @@ def draw_name_select_screen(surface, background_surface, selector: NameSelector,
         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect)
         pygame.draw.rect(surface, settings.UI_LABEL_BG, input_rect)
 
+    # 選択中の枠を強調
     if selector.input_mode:
         pygame.draw.rect(surface, settings.ACCENT_BLUE, input_rect, 3, border_radius=12)
     else:
         pygame.draw.rect(surface, settings.ACCENT_BLUE, list_rect, 3, border_radius=12)
 
+    # 4. 各枠のタイトル
     list_title = font_s.render("過去の名前", True, settings.TEXT_DARK)
     input_title = font_s.render("新しい名前入力", True, settings.TEXT_DARK)
-    surface.blit(list_title, (list_rect.x + 10, list_rect.y + 8))
-    surface.blit(input_title, (input_rect.x + 10, input_rect.y + 8))
+    surface.blit(list_title, (90, 204))
+    surface.blit(input_title, (660, 204))
 
-    # recent list
+    # 5. リストの描画
     recent = selector.recent or []
+    recent_start_x, recent_start_y = (139.50390625, 248.08203125)
+    # アイテム間の行間幅 (フォントサイズ + 余白)
+    line_spacing = 36 
+    
     for i, name in enumerate(recent[:6]):
-        y = list_rect.y + 44 + i * 36
+        y = recent_start_y + (i * line_spacing)
         prefix = "> " if (not selector.input_mode and selector.selected_index == i) else "  "
         txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
-        surface.blit(txt, (list_rect.x + 12, y))
+        surface.blit(txt, (recent_start_x, y))
 
+    # 6. 新しい名前の入力状態の描画
     try:
         input_font = pygame.font.Font(settings.FONT_PATH, 28)
     except Exception:
         input_font = pygame.font.Font(None, 30)
+        
     input_text = selector.name or ""
     input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
-    surface.blit(input_surf, (input_rect.x + 12, input_rect.y + 56))
-    _draw_back_hint(surface, left=20, bottom=18, size=22)
+    surface.blit(input_surf, (662, 252))
 
 
 def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect: Optional[pygame.Rect] = None):
