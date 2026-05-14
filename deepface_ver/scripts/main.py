@@ -1,7 +1,7 @@
 # main moved into scripts (imports updated to package paths)
 import sys
 import pygame
-from pygame.locals import KEYDOWN, K_ESCAPE, K_q, K_s, K_b, K_e, K_n, K_h, K_r
+from pygame.locals import KEYDOWN, K_ESCAPE, K_s, K_e, K_n, K_h, K_r
 from collections import deque, Counter
 import random
 import pygame.mixer

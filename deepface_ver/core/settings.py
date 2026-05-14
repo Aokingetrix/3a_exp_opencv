@@ -1,5 +1,9 @@
 # settings.py moved into core
 import pygame
+import os
+import sys
+from pathlib import Path
+
 pygame.font.init()
 
 # --- Wii風カラーパレット ---
@@ -16,16 +20,12 @@ WII_SHADOW_COLOR = (0, 0, 0, 80)
 UI_PANEL_BG = (238, 246, 255, 245)
 UI_LABEL_BG = (248, 250, 255, 235)
 
-import os
-import sys
-from pathlib import Path
-
 FONT_CANDIDATES = []
 if sys.platform.startswith("win"):
     FONT_CANDIDATES = [
-        r"C:\\Windows\\Fonts\\Meiryo.ttc",
-        r"C:\\Windows\\Fonts\\YuGothic.ttf",
-        r"C:\\Windows\\Fonts\\msgothic.ttc",
+        r"C:\Windows\Fonts\Meiryo.ttc",
+        r"C:\Windows\Fonts\YuGothic.ttf",
+        r"C:\Windows\Fonts\msgothic.ttc",
     ]
 else:
     FONT_CANDIDATES = [
@@ -48,12 +48,12 @@ if FONT_PATH:
 else:
     print("警告: 利用可能なフォントが見つかりません。デフォルトフォントを使用します。")
 
+# === システム定数（絶対に削除しない） ===
 TILE_SIZE = 40
 RECOGNITION_HISTORY_SIZE = 3
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PACKAGE_ROOT / "data"
-
 
 def asset_path(*relative_parts):
     return str(DATA_DIR.joinpath(*relative_parts))
@@ -83,3 +83,40 @@ EMOTION_IMAGE_PATHS = {
     "ビックリ": asset_path("surprise.png"),
     "シーン": NO_EXP_IMAGE_PATH,
 }
+
+# === 追加機能: 動的フォント＆スタイル管理 ===
+
+# Settings Spine Font 用のパス（存在しなければ通常のフォントにフォールバック）
+SPINE_FONT_PATH = asset_path("fonts", "spine_font.ttf") 
+if not os.path.exists(SPINE_FONT_PATH):
+    SPINE_FONT_PATH = FONT_PATH
+
+def get_font(size: int, use_spine_font: bool = False):
+    """
+    フォントオブジェクトを安全に取得する一元管理関数。
+    drawing.py などの描画側は、直接 pygame.font.Font を呼ばずこれを使う。
+    """
+    path = SPINE_FONT_PATH if use_spine_font else FONT_PATH
+    try:
+        return pygame.font.Font(path, size)
+    except Exception:
+        # フォント読み込みに失敗した場合はデフォルトフォントで少し大きめに
+        return pygame.font.Font(None, size + 4)
+
+def get_score_style(score: int):
+    """
+    スコア到達度に応じた色と、特殊フォント（Spine Font）を使用するかを返す。
+    閾値: 100, 500, 1000, 2000, 3000
+    """
+    if score >= 3000:
+        return (255, 215, 0), True      # ゴールド + 特殊フォント
+    elif score >= 2000:
+        return (148, 0, 211), True      # ダークバイオレット + 特殊フォント
+    elif score >= 1000:
+        return (255, 50, 50), True      # レッド + 特殊フォント
+    elif score >= 500:
+        return (255, 140, 0), False     # ダークオレンジ + 通常フォント
+    elif score >= 100:
+        return (218, 165, 32), False    # ゴールデンロッド + 通常フォント
+        
+    return TEXT_DARK, False             # 初期状態
