@@ -59,8 +59,8 @@ def _draw_text_chip(
     surface.blit(text_surf, text_rect)
     return chip_rect
 
-
-def _draw_back_hint(surface, text="[B] 戻る", left=20, bottom=18, size=22, color=None):
+# 修正: B を ESC に変更
+def _draw_back_hint(surface, text="[ESC] 戻る", left=20, bottom=18, size=22, color=None):
     if color is None:
         color = settings.TEXT_DARK
     
@@ -335,7 +335,6 @@ def draw_game_background(surface, background_surface, frame, result, smoothed_em
     render_frame(surface, frame, result, cam_width, 0)
     right_edge = surface.get_width() - 20
     
-    # 修正: Y座標を116から64に変更し、名前表示との余白を詰める
     _draw_text_chip(
         surface,
         f"あなた: {smoothed_emotion}",
@@ -449,16 +448,15 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
     surface.blit(list_title, (90, 204))
     surface.blit(input_title, (660, 204))
 
-    # 修正: リストを2列×3行で配置する
     recent = selector.recent or []
-    recent_start_x = 110      # 左端ベース
-    recent_start_y = 248      # 上端ベース
-    col_width = 240           # 列ごとの間隔幅
-    line_spacing = 36         # 行の高さ
+    recent_start_x = 110      
+    recent_start_y = 248      
+    col_width = 240           
+    line_spacing = 36         
     
     for i, name in enumerate(recent[:6]):
-        col = i // 3  # 0 or 1
-        row = i % 3   # 0, 1, 2
+        col = i // 3  
+        row = i % 3   
         x = recent_start_x + (col * col_width)
         y = recent_start_y + (row * line_spacing)
         
@@ -652,9 +650,7 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     nav_rect.bottom = cam_height - 18
     surface.blit(nav_surf, nav_rect)
 
-    _draw_back_hint(surface, text="[B] 戻る", left=20, bottom=18, size=22)
-    
-    # 修正: 重複して表示されていた score_surf と best_surf の描画ブロックを削除しました。
+    _draw_back_hint(surface, text="[ESC] 戻る", left=20, bottom=18, size=22)
 
 
 def draw_finish_screen(surface, background_surface, game_manager, screen_w, screen_h):
@@ -676,7 +672,6 @@ def draw_finish_screen(surface, background_surface, game_manager, screen_w, scre
     surface.blit(score_surf, score_surf.get_rect(center=(cx, screen_h // 2)))
     surface.blit(restart_surf, restart_surf.get_rect(center=(cx, screen_h // 2 + 80)))
     
-    # 修正: 最終画面での新記録テキストを「ハイスコア更新！」に変更
     if getattr(game_manager, 'new_personal_best', False):
         font_flag = settings.get_font(28)
         flag_surf = font_flag.render("ハイスコア更新！", True, settings.ACCENT_GREEN)
@@ -697,7 +692,6 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
     chip_height = 44
     player_name = getattr(game_manager, 'player_name', '名無し')
     
-    # プレイヤー名（左画面・右上）
     name_rect = _draw_text_chip(
         surface,
         f"名前: {player_name}",
@@ -708,13 +702,13 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
         chip_height=chip_height,
     )
 
-    # 修正: 新記録フラグ表示を左画面・右上の名前の下に新設
+    # 修正: Y座標を116へ変更し、「あなたの感情」の下へ配置
     if getattr(game_manager, 'new_personal_best', False):
         _draw_text_chip(
             surface,
             "スコア更新中！",
             right=right_edge,
-            top=name_rect.bottom + 8,
+            top=116,
             size=22,
             text_color=settings.ACCENT_GREEN,
             chip_width=200,
@@ -724,7 +718,6 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
     score_color, use_spine = settings.get_score_style(game_manager.score)
     score_y = screen_h - 64
     
-    # スコア表示（左画面・左下）
     _draw_text_chip(
         surface,
         f"Score: {game_manager.score}",

@@ -72,9 +72,6 @@ class GameManager:
         self.skip_instruction: bool = False
         self.countdown_start_time: int = 0
         self.countdown_duration_ms: int = 3000
-        
-        # 追加: カウントダウン再生状態の追跡用
-        self.last_countdown_sec: int = -1
 
     def set_difficulty(self, difficulty):
         self.difficulty = difficulty
@@ -90,10 +87,6 @@ class GameManager:
             # カウントダウン画面へ
             self.state = GameState.COUNTDOWN
             self.countdown_start_time = pygame.time.get_ticks()
-            
-            # 追加: カウント開始時の「3」のSE再生と状態初期化
-            self.sounds["count"].play()
-            self.last_countdown_sec = 3
             return
 
     def start_new_round(self):
@@ -152,22 +145,6 @@ class GameManager:
         if self.state == GameState.COUNTDOWN:
             current_time = pygame.time.get_ticks()
             elapsed = current_time - self.countdown_start_time
-            remaining_ms = self.countdown_duration_ms - elapsed
-            
-            # 追加: カウントダウン「2」「1」のSE再生制御
-            if remaining_ms > 2000:
-                current_sec = 3
-            elif remaining_ms > 1000:
-                current_sec = 2
-            elif remaining_ms > 0:
-                current_sec = 1
-            else:
-                current_sec = 0
-
-            if current_sec < self.last_countdown_sec and current_sec > 0:
-                self.sounds["count"].play()
-                self.last_countdown_sec = current_sec
-
             if elapsed >= self.countdown_duration_ms:
                 self.start_new_round()
                 return
@@ -210,7 +187,7 @@ class GameManager:
         remaining_ms = self.round_duration_ms - elapsed_time
         self.timer_sec = max(0, remaining_ms / 1000.0)
         
-        # ゲーム中のカウントダウン効果音
+        # ゲーム中の残り時間警告効果音
         if self.timer_sec < 2.0 and not getattr(self, 'countdown_se_played', False):
             self.sounds["count"].play()
             self.countdown_se_played = True
