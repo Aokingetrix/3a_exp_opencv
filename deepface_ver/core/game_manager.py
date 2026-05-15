@@ -72,6 +72,9 @@ class GameManager:
         self.skip_instruction: bool = False
         self.countdown_start_time: int = 0
         self.countdown_duration_ms: int = 3000
+        self.all_time_rank: int = 0
+        self.todays_rank: int = 0
+        self.personal_best_list: List[int] = []
 
     def set_difficulty(self, difficulty):
         self.difficulty = difficulty

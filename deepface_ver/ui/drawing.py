@@ -1,5 +1,5 @@
 import pygame
-from typing import Optional
+from typing import Optional, List
 from ..core.utils import draw_text, render_image, render_frame
 from .ui_elements import LifeDisplay
 from ..core import settings
@@ -58,6 +58,7 @@ def _draw_text_chip(
 
     surface.blit(text_surf, text_rect)
     return chip_rect
+
 
 def _draw_back_hint(surface, text="[ESC] 戻る", left=20, bottom=18, size=22, color=None):
     if color is None:
@@ -437,7 +438,7 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect)
         pygame.draw.rect(surface, settings.UI_LABEL_BG, input_rect)
 
-    if selector.input_mode:
+    if getattr(selector, 'input_mode', False):
         pygame.draw.rect(surface, settings.ACCENT_BLUE, input_rect, 3, border_radius=12)
     else:
         pygame.draw.rect(surface, settings.ACCENT_BLUE, list_rect, 3, border_radius=12)
@@ -459,71 +460,34 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
         x = recent_start_x + (col * col_width)
         y = recent_start_y + (row * line_spacing)
         
-        prefix = "> " if (not selector.input_mode and selector.selected_index == i) else "  "
+        prefix = "> " if (not getattr(selector, 'input_mode', False) and selector.selected_index == i) else "  "
         txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
         surface.blit(txt, (x, y))
 
-    # --- 修正: IME入力の描画とカーソル点滅 ---
     input_font = settings.get_font(28)
     input_text = selector.name or ""
     
-    # 確定済みのテキストを描画
     input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
     surface.blit(input_surf, (662, 252))
 
-    # 入力モード中のみカーソルと変換中文字を描画
     if getattr(selector, 'input_mode', False):
-        # カーソルのX座標を計算 (確定済みテキストのうち、カーソル位置までの幅を取得)
         text_before_cursor = input_text[:selector.cursor_pos]
         cursor_x = 662 + input_font.size(text_before_cursor)[0]
         cursor_y = 252
 
-        # 変換中のテキストがあれば描画し、その下に線を引く
         editing_text = getattr(selector, 'editing_text', "")
         if editing_text:
             editing_surf = input_font.render(editing_text, True, settings.TEXT_DARK)
             surface.blit(editing_surf, (cursor_x, cursor_y))
-            # 変換中を示す下線
             pygame.draw.line(surface, settings.TEXT_DARK, 
                              (cursor_x, cursor_y + editing_surf.get_height()), 
                              (cursor_x + editing_surf.get_width(), cursor_y + editing_surf.get_height()), 2)
-            # カーソル位置を変換中テキストの右端へ移動
             cursor_x += editing_surf.get_width()
 
-        # 500ミリ秒ごとに点滅する縦線（カーソル）
         if pygame.time.get_ticks() % 1000 < 500:
             pygame.draw.line(surface, settings.TEXT_DARK, 
                              (cursor_x, cursor_y), 
                              (cursor_x, cursor_y + input_font.get_height()), 2)
-
-
-def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect: Optional[pygame.Rect] = None):
-    font_m = settings.get_font(20)
-
-    all_best = highscore.get_all_names_best(10)
-    sel_best = highscore.get_best_for_name(selected_name or "名無し", n=3)
-
-    panel_w = 320
-    panel_x = screen_w - panel_w - 20
-    panel_h = 356
-    panel_y = (screen_h - panel_h) // 2
-
-    panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-    shadow = pygame.Rect(panel.x + 4, panel.y + 4, panel_w, panel_h)
-    try:
-        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, shadow, border_radius=16)
-        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel, border_radius=16)
-    except TypeError:
-        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, shadow)
-        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel)
-
-    draw_text(surface, "全名ベスト10", (panel.x + 16, panel.y + 14), size=18)
-    for i, rec in enumerate(all_best[:10]):
-        draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel.x + 16, panel.y + 40 + i * 20), size=16)
-
-    draw_text(surface, f"{selected_name} のベスト3", (panel.x + 16, panel.y + 252), size=18)
-    for i, s in enumerate(sel_best[:3]):
-        draw_text(surface, f"{i+1}. {s}", (panel.x + 16, panel.y + 278 + i * 20), size=16)
 
 
 def draw_round_start_screen(surface, game_manager, cam_width, cam_height):
@@ -755,3 +719,74 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
         chip_width=240,
         chip_height=50,
     )
+
+
+def draw_title_highscores(surface, screen_w, best_all, best_today):
+    """タイトル画面右上に歴代ベスト5と本日ベスト3を表示"""
+    panel_w, panel_h = 250, 400
+    panel = pygame.Rect(screen_w - panel_w - 20, 20, panel_w, panel_h)
+    
+    try:
+        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, panel.move(4, 4), border_radius=16)
+        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel, border_radius=16)
+    except TypeError:
+        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, panel.move(4, 4))
+        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel)
+
+    y = panel.y + 20
+    draw_text(surface, "歴代ベスト5", (panel.x + 15, y), size=24, color=settings.TEXT_DARK)
+    y += 35
+    if not best_all:
+        draw_text(surface, "データがありません", (panel.x + 25, y), size=18)
+        y += 24
+    else:
+        for i, rec in enumerate(best_all[:5]):
+            draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel.x + 25, y), size=20)
+            y += 28
+
+    y += 30
+    draw_text(surface, "本日のベスト3", (panel.x + 15, y), size=24, color=settings.TEXT_DARK)
+    y += 35
+    if not best_today:
+        draw_text(surface, "今日の記録はまだありません", (panel.x + 25, y), size=18)
+    else:
+        for i, rec in enumerate(best_today[:3]):
+            draw_text(surface, f"{i+1}. {rec['name']} {rec['score']}", (panel.x + 25, y), size=20)
+            y += 28
+
+
+def draw_finish_highscores(surface, screen_w, game_manager):
+    """終了画面右上に、今回の順位と自己ベストをコンパクトにまとめて描画"""
+    panel_w, panel_h = 260, 260 
+    panel = pygame.Rect(screen_w - panel_w - 20, 20, panel_w, panel_h) 
+    
+    try:
+        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, panel.move(4, 4), border_radius=12)
+        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel, border_radius=12)
+    except TypeError:
+        pygame.draw.rect(surface, settings.WII_SHADOW_COLOR, panel.move(4, 4))
+        pygame.draw.rect(surface, settings.UI_PANEL_BG, panel)
+
+    y = panel.y + 12
+    draw_text(surface, "今回の順位", (panel.x + 12, y), size=18, color=settings.TEXT_DARK)
+    y += 32
+    
+    t_rank = getattr(game_manager, 'todays_rank', 0)
+    a_rank = getattr(game_manager, 'all_time_rank', 0)
+    
+    draw_text(surface, f"本日: {t_rank}位！", (panel.x + 20, y), size=22, color=settings.ACCENT_GREEN)
+    y += 30
+    draw_text(surface, f"歴代: {a_rank}位！", (panel.x + 20, y), size=18)
+    
+    y += 40
+    p_name = getattr(game_manager, 'player_name', '名無し')
+    draw_text(surface, f"{p_name}のベスト3", (panel.x + 12, y), size=18, color=settings.TEXT_DARK)
+    y += 28
+    
+    best_list = getattr(game_manager, 'personal_best_list', [])
+    if not best_list:
+        draw_text(surface, "なし", (panel.x + 20, y), size=16)
+    else:
+        for i, s in enumerate(best_list[:3]):
+            draw_text(surface, f"{i+1}. {s}点", (panel.x + 20, y), size=16)
+            y += 22

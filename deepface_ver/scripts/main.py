@@ -144,6 +144,10 @@ def main():
     current_bgm = None
     prev_state = None
 
+    # 追加: ハイスコアキャッシュ用変数
+    cached_best_all = []
+    cached_best_today = []
+
     while running:
         # 変数を初期化。物理キー依存の変数を廃止し、意味（cancel）で統一。
         s_key_pressed = cancel_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
@@ -210,12 +214,30 @@ def main():
             selector.cancelled = False
             selector.active = False
 
-        if prev_state != state and state == GameState.GAME_FINISH:
-            try:
-                is_new = highscore.update_if_better(game_manager.player_name if hasattr(game_manager, 'player_name') else "名無し", game_manager.score)
-                game_manager.new_personal_best = bool(is_new)
-            except Exception:
-                game_manager.new_personal_best = False
+        # 変更: ハイスコアの計算とデータ取得をタイトル・終了画面の遷移時のみ実行
+        if prev_state != state:
+            if state == GameState.TITLE:
+                try:
+                    cached_best_all = highscore.get_all_names_best(5)
+                    cached_best_today = highscore.get_todays_best(3)
+                except Exception:
+                    pass
+            elif state == GameState.GAME_FINISH:
+                try:
+                    name = game_manager.player_name if hasattr(game_manager, 'player_name') else "名無し"
+                    score = game_manager.score
+                    is_new = highscore.update_if_better(name, score)
+                    game_manager.new_personal_best = bool(is_new)
+                    
+                    # 順位と自己ベストをキャッシュ
+                    game_manager.all_time_rank = highscore.get_rank(score, is_today=False)
+                    game_manager.todays_rank = highscore.get_rank(score, is_today=True)
+                    game_manager.personal_best_list = highscore.get_best_for_name(name, n=3)
+                except Exception:
+                    game_manager.new_personal_best = False
+                    game_manager.all_time_rank = 0
+                    game_manager.todays_rank = 0
+                    game_manager.personal_best_list = []
         prev_state = state
 
         if not developer_mode and state == GameState.TITLE:
@@ -305,6 +327,8 @@ def main():
 
         if state == GameState.TITLE:
             title_rect = drawing.draw_title_screen(screen, background_surface, floating_images)
+            # 追加: キャッシュしたハイスコアを描画
+            drawing.draw_title_highscores(screen, SCREEN_WIDTH, cached_best_all, cached_best_today)
             pygame.display.flip()
             clock.tick(game_manager.fps)
             frame_count += 1
@@ -346,6 +370,8 @@ def main():
             drawing.draw_result_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
         elif state == GameState.GAME_FINISH:
             drawing.draw_finish_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
+            # 追加: 終了画面の右側に今回の順位と自己ベストを描画
+            drawing.draw_finish_highscores(screen, SCREEN_WIDTH, game_manager)
 
         if state != GameState.GAME_FINISH:
             drawing.draw_common_ui(screen, game_manager, CAM_WIDTH, CAM_HEIGHT, life_display)
