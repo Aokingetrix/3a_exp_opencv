@@ -9,35 +9,38 @@ class NameSelector:
         self.active: bool = False
         self.name: str = "名無し"
         self.cursor_pos: int = len(self.name)
-        # 修正: 初期化時にも履歴を直近6件までに制限
         self.recent: List[str] = highscore.load().get("recent", ["名無し"])[:6]
         self.selected_index: Optional[int] = None
         self.input_mode: bool = False
         self.done: bool = False
         self.cancelled: bool = False
+        # 追加: 変換中の文字列を保持する変数
+        self.editing_text: str = ""
 
     def start(self) -> None:
         self.active = True
         self.done = False
         self.cancelled = False
-        # 修正: 新しい名前のデフォルトを「名無し」に設定し、カーソルを末尾に合わせる
         self.name = "名無し"
         self.cursor_pos = len(self.name)
-        # 修正: 起動時にも履歴を直近6件までに制限
         self.recent = highscore.load().get("recent", ["名無し"])[:6]
         self.selected_index = 0 if self.recent else None
         self.input_mode = False
+        self.editing_text = ""
+        # 確実にテキスト入力をオフにしておく
+        pygame.key.stop_text_input()
 
     def handle_event(self, event: pygame.event.EventType) -> None:
         if not self.active:
             return
+            
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_b:
+            if event.key == pygame.K_b or event.key == pygame.K_ESCAPE:
                 self.cancelled = True
+                pygame.key.stop_text_input()
                 return
 
             if event.key == pygame.K_RETURN:
-                # confirm
                 if self.input_mode:
                     entered_name = self.name.strip()
                     if not entered_name:
@@ -49,14 +52,21 @@ class NameSelector:
                     elif not self.name:
                         self.name = "名無し"
                 self.done = True
+                pygame.key.stop_text_input()
                 return
 
             if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
                 self.input_mode = not self.input_mode
                 if self.input_mode:
                     self.selected_index = None
+                    # 入力モードになったらIMEをオンにし、変換候補の表示位置を指定
+                    pygame.key.start_text_input()
+                    pygame.key.set_text_input_rect(pygame.Rect(662, 252, 200, 40))
                 else:
                     self.selected_index = 0 if self.recent else None
+                    # 履歴選択モードに戻ったらIMEをオフにする
+                    pygame.key.stop_text_input()
+                    self.editing_text = ""
                 return
             
             if event.key == pygame.K_BACKSPACE:
@@ -71,7 +81,6 @@ class NameSelector:
                         self.selected_index = 0
                     else:
                         self.selected_index = max(0, self.selected_index - 1)
-                    # 修正: 履歴選択時の self.name = "" (クリア処理) を削除
                 return
             
             if event.key == pygame.K_DOWN:
@@ -79,15 +88,20 @@ class NameSelector:
                     if self.selected_index is None:
                         self.selected_index = 0
                     else:
-                        # 履歴が最大6件に制限されているため、ここで見えない領域には行かなくなる
                         self.selected_index = min(len(self.recent) - 1, self.selected_index + 1)
-                    # 修正: 履歴選択時の self.name = "" (クリア処理) を削除
                 return
-            
-            # text input (basic)
-            if self.input_mode and event.unicode and event.unicode.isprintable():
-                self.name = self.name[: self.cursor_pos] + event.unicode + self.name[self.cursor_pos :]
-                self.cursor_pos += len(event.unicode)
+
+        # 追加: IME変換中のイベント処理
+        elif event.type == pygame.TEXTEDITING:
+            if self.input_mode:
+                self.editing_text = event.text
+                
+        # 追加: IME確定後、または通常の文字入力イベント処理
+        elif event.type == pygame.TEXTINPUT:
+            if self.input_mode:
+                self.name = self.name[: self.cursor_pos] + event.text + self.name[self.cursor_pos :]
+                self.cursor_pos += len(event.text)
+                self.editing_text = ""
 
     def get_result(self) -> Optional[str]:
         if self.done:

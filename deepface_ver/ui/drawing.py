@@ -59,7 +59,6 @@ def _draw_text_chip(
     surface.blit(text_surf, text_rect)
     return chip_rect
 
-# 修正: B を ESC に変更
 def _draw_back_hint(surface, text="[ESC] 戻る", left=20, bottom=18, size=22, color=None):
     if color is None:
         color = settings.TEXT_DARK
@@ -464,10 +463,38 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
         txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
         surface.blit(txt, (x, y))
 
+    # --- 修正: IME入力の描画とカーソル点滅 ---
     input_font = settings.get_font(28)
     input_text = selector.name or ""
+    
+    # 確定済みのテキストを描画
     input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
     surface.blit(input_surf, (662, 252))
+
+    # 入力モード中のみカーソルと変換中文字を描画
+    if getattr(selector, 'input_mode', False):
+        # カーソルのX座標を計算 (確定済みテキストのうち、カーソル位置までの幅を取得)
+        text_before_cursor = input_text[:selector.cursor_pos]
+        cursor_x = 662 + input_font.size(text_before_cursor)[0]
+        cursor_y = 252
+
+        # 変換中のテキストがあれば描画し、その下に線を引く
+        editing_text = getattr(selector, 'editing_text', "")
+        if editing_text:
+            editing_surf = input_font.render(editing_text, True, settings.TEXT_DARK)
+            surface.blit(editing_surf, (cursor_x, cursor_y))
+            # 変換中を示す下線
+            pygame.draw.line(surface, settings.TEXT_DARK, 
+                             (cursor_x, cursor_y + editing_surf.get_height()), 
+                             (cursor_x + editing_surf.get_width(), cursor_y + editing_surf.get_height()), 2)
+            # カーソル位置を変換中テキストの右端へ移動
+            cursor_x += editing_surf.get_width()
+
+        # 500ミリ秒ごとに点滅する縦線（カーソル）
+        if pygame.time.get_ticks() % 1000 < 500:
+            pygame.draw.line(surface, settings.TEXT_DARK, 
+                             (cursor_x, cursor_y), 
+                             (cursor_x, cursor_y + input_font.get_height()), 2)
 
 
 def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect: Optional[pygame.Rect] = None):
@@ -702,7 +729,6 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
         chip_height=chip_height,
     )
 
-    # 修正: Y座標を116へ変更し、「あなたの感情」の下へ配置
     if getattr(game_manager, 'new_personal_best', False):
         _draw_text_chip(
             surface,
