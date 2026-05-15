@@ -10,6 +10,7 @@ class GameState:
     SKIP_SELECTION = "skip_selection"  # 説明スキップ選択画面
     INSTRUCTION = "instruction"
     EMOTION_MAP = "emotion_map"  # 感情対応関係明示画面
+    READY = "ready"
     COUNTDOWN = "countdown"  # 3-2-1 カウントダウン画面
     ROUND_START = "round_start"
     PLAYING = "playing"
@@ -17,16 +18,14 @@ class GameState:
     RESULT = "result"
     GAME_FINISH = "game_finish"
 
-# --- 変更: プレイ中の誤爆キャンセルを防ぐため、安全な画面からの遷移のみを残す ---
 # 固定遷移テーブル: 各state で キャンセル（戻る）操作が遷移する先
 BACK_TRANSITIONS = {
     GameState.SKIP_SELECTION: GameState.TITLE,
     GameState.INSTRUCTION: GameState.SKIP_SELECTION,
     GameState.EMOTION_MAP: GameState.INSTRUCTION,
+    GameState.READY: GameState.TITLE,
     GameState.GAME_FINISH: GameState.TITLE,
 }
-
-
 
 class GameManager:
     def __init__(self, screen_width: int, screen_height: int, sounds: Dict[str, Any]) -> None:
@@ -53,7 +52,6 @@ class GameManager:
         self.score: int = 0
         self.current_round: int = 0
 
-        # プレイヤー名と個人ベストフラグを明示的に初期化
         self.player_name: str = "名無し"
         self.new_personal_best: bool = False
         self.personal_best_score: int = 0
@@ -68,11 +66,19 @@ class GameManager:
         self.timer_sec: float = 0.0
 
         self.last_round_outcome: Optional[str] = None
+        self.last_score_change: int = 0
+        self.last_life_change: int = 0
 
-        # 新規: 説明スキップ＆導入画面フロー
         self.skip_instruction: bool = False
         self.countdown_start_time: int = 0
         self.countdown_duration_ms: int = 3000
+        
+        # 追加: カウントダウン再生状態の追跡用
+        self.last_countdown_sec: int = -1
+
+    def set_difficulty(self, difficulty):
+        self.difficulty = difficulty
+        self.state = GameState.READY
 
     def start_game(self):
         """プレイヤー名確定後に呼ばれ、カウントダウンへ遷移する"""
@@ -84,6 +90,10 @@ class GameManager:
             # カウントダウン画面へ
             self.state = GameState.COUNTDOWN
             self.countdown_start_time = pygame.time.get_ticks()
+            
+            # 追加: カウント開始時の「3」のSE再生と状態初期化
+            self.sounds["count"].play()
+            self.last_countdown_sec = 3
             return
 
     def start_new_round(self):
@@ -91,10 +101,10 @@ class GameManager:
             self.state = GameState.GAME_FINISH
             return
         self.current_round += 1
-
+        
         self.state = GameState.ROUND_START
         self.player_emotion_history = []
-
+        
         self.round_start_time = pygame.time.get_ticks()
         self.timer_sec = self.round_duration_ms / 1000.0
 
@@ -104,66 +114,69 @@ class GameManager:
         self.countdown_se_played = False
 
     def _select_npc_emotions(self) -> None:
-        """選択ロジックを分離。スコアに応じて NPC の感情数を変える。"""
         if self.score < 500:
             self.npc_emotions = [random.choice(self.emotions_for_npc)]
         elif self.score < 1500:
             self.npc_emotions = random.sample(self.emotions_for_npc, 2)
         else:
             self.npc_emotions = random.sample(self.emotions_for_npc, 3)
-
+        
     def update(self, current_player_emotion: str, key_pressed_s: bool, key_pressed_cancel: bool, key_pressed_e: bool, key_pressed_n: bool, key_pressed_h: bool, key_pressed_r: bool) -> None:
-        """
-        メイン更新ロジック。画面遷移・ゲーム進行を制御する。
-        Args:
-            key_pressed_cancel: キャンセル（戻る）操作
-        """
-        # ===== キャンセル操作: 固定遷移テーブルに従う =====
+        """メイン更新ロジック。画面遷移・ゲーム進行を制御する。"""
         if key_pressed_cancel:
             back_state = BACK_TRANSITIONS.get(self.state)
             if back_state:
                 self.state = back_state
                 return
-
-        # ===== TITLE → SKIP_SELECTION =====
+        
         if self.state == GameState.TITLE:
             if key_pressed_s:
                 self.state = GameState.SKIP_SELECTION
                 return
-
-        # ===== SKIP_SELECTION: 説明スキップ選択 =====
+        
         if self.state == GameState.SKIP_SELECTION:
             if key_pressed_s:
                 self.skip_instruction = False
                 self.state = GameState.INSTRUCTION
                 return
-
-        # ===== INSTRUCTION: 説明画面 =====
+        
         if self.state == GameState.INSTRUCTION:
             if key_pressed_s:
                 self.state = GameState.EMOTION_MAP
                 return
-
-        # ===== EMOTION_MAP: 感情対応関係明示画面 =====
+        
         if self.state == GameState.EMOTION_MAP:
             if key_pressed_s:
                 pass
-
-        # ===== COUNTDOWN: 3-2-1 カウントダウン =====
+        
         if self.state == GameState.COUNTDOWN:
             current_time = pygame.time.get_ticks()
             elapsed = current_time - self.countdown_start_time
+            remaining_ms = self.countdown_duration_ms - elapsed
+            
+            # 追加: カウントダウン「2」「1」のSE再生制御
+            if remaining_ms > 2000:
+                current_sec = 3
+            elif remaining_ms > 1000:
+                current_sec = 2
+            elif remaining_ms > 0:
+                current_sec = 1
+            else:
+                current_sec = 0
+
+            if current_sec < self.last_countdown_sec and current_sec > 0:
+                self.sounds["count"].play()
+                self.last_countdown_sec = current_sec
+
             if elapsed >= self.countdown_duration_ms:
                 self.start_new_round()
                 return
-
-        # ===== R キー: GAME_FINISH → TITLE =====
+        
         if key_pressed_r:
             if self.state == GameState.GAME_FINISH:
                 self.state = GameState.TITLE
                 return
-
-        # ===== S キー: ゲーム進行中の状態遷移 =====
+        
         if key_pressed_s:
             if self.state == GameState.RESULT:
                 if self.lives <= 0:
@@ -174,14 +187,13 @@ class GameManager:
             elif self.state == GameState.GAME_FINISH:
                 self.state = GameState.SKIP_SELECTION
                 return
-
-        # ===== ゲーム進行中の自動遷移 =====
+        
         if self.state == GameState.ROUND_START:
             self._transition_from_round_start()
-
+        
         if self.state == GameState.PLAYING:
             self._update_playing(current_player_emotion)
-
+        
         elif self.state == GameState.JUDGE:
             self.judge()
 
@@ -197,6 +209,8 @@ class GameManager:
         elapsed_time = current_time - self.round_start_time
         remaining_ms = self.round_duration_ms - elapsed_time
         self.timer_sec = max(0, remaining_ms / 1000.0)
+        
+        # ゲーム中のカウントダウン効果音
         if self.timer_sec < 2.0 and not getattr(self, 'countdown_se_played', False):
             self.sounds["count"].play()
             self.countdown_se_played = True
@@ -220,9 +234,13 @@ class GameManager:
             self.player_emotion = Counter(self.player_emotion_history).most_common(1)[0][0]
         
         self.last_round_outcome = "success"
+        self.last_score_change = 0
+        self.last_life_change = 0
         
         if self.player_emotion == "探し中...":
             self.last_round_outcome = "fail_missing"
+            self.last_score_change = -10
+            self.last_life_change = -1
             self.score -= 10
             self.lives -= 1
             self.round_result_text = "顔がみつからない..."
@@ -231,6 +249,8 @@ class GameManager:
 
         elif self.player_emotion in self.npc_emotions:
             self.last_round_outcome = "fail_match"
+            self.last_score_change = -50
+            self.last_life_change = -1
             self.lives -= 1 
             self.round_result_text = "失敗！"
             self.round_duration_ms = 3000
@@ -238,6 +258,8 @@ class GameManager:
 
         elif self.player_emotion == "シーン":
             self.last_round_outcome = "fail_neutral"
+            self.last_score_change = -10
+            self.last_life_change = -1
             self.lives -= 1
             self.round_result_text = "能面顔..."
             self.round_duration_ms = 3000
@@ -252,13 +274,14 @@ class GameManager:
                 points = 200
             else:
                 points = 300
-
+                
+            self.last_score_change = points
+            self.last_life_change = 0
             self.score += points
             self.round_duration_ms *= 0.95
             self.round_result_text = "成功!"
             self.sounds["success"].play()
 
-        # ラウンド確定時にのみベスト更新判定を行う
         self.new_personal_best = self.score > self.personal_best_score
         
         self.state = GameState.RESULT

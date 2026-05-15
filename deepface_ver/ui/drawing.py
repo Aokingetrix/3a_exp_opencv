@@ -21,7 +21,6 @@ def _draw_text_chip(
     chip_height: Optional[int] = None,
     use_spine_font: bool = False,
 ):
-    """テキスト付きの背景チップを描画する。左・右どちらの基準座標からでも配置可能。"""
     if text_color is None:
         text_color = settings.TEXT_DARK
     if bg_color is None:
@@ -31,7 +30,6 @@ def _draw_text_chip(
     font = settings.get_font(current_size, use_spine_font)
     text_surf = font.render(text, True, text_color)
 
-    # 枠に収まるまでフォントサイズを自動縮小
     if chip_width is not None and chip_height is not None:
         while (text_surf.get_width() > chip_width - 24 or text_surf.get_height() > chip_height - 12) and current_size > 12:
             current_size -= 1
@@ -40,7 +38,6 @@ def _draw_text_chip(
 
     text_rect = text_surf.get_rect()
 
-    # 配置座標の決定
     if chip_width is not None and chip_height is not None:
         x = left if left is not None else (right - chip_width)
         chip_rect = pygame.Rect(x, top, chip_width, chip_height)
@@ -77,7 +74,6 @@ def _draw_back_hint(surface, text="[B] 戻る", left=20, bottom=18, size=22, col
 
 
 def draw_title_screen(surface, background_surface, floating_images):
-    """タイトル画面を描画する"""
     surface.blit(background_surface, (0, 0))
     for img in floating_images:
         img.update()
@@ -130,7 +126,6 @@ def draw_title_screen(surface, background_surface, floating_images):
 
 
 def draw_skip_selection_screen(surface, background_surface, screen_w, screen_h):
-    """説明スキップ選択画面を描画する"""
     surface.blit(background_surface, (0, 0))
     
     font_l = settings.get_font(60)
@@ -176,7 +171,6 @@ def draw_skip_selection_screen(surface, background_surface, screen_w, screen_h):
 
 
 def draw_emotion_map_screen(surface, background_surface, game_manager, screen_w, screen_h):
-    """GUIエディタから生成された絶対座標ベースの感情対応関係明示画面 (1280x480想定)"""
     surface.blit(background_surface, (0, 0))
     
     font_l = settings.get_font(46)
@@ -248,7 +242,6 @@ def draw_emotion_map_screen(surface, background_surface, game_manager, screen_w,
 
 
 def draw_countdown_screen(surface, background_surface, game_manager, screen_w, screen_h):
-    """3-2-1 カウントダウン画面を描画する"""
     surface.blit(background_surface, (0, 0))
     
     font_huge = settings.get_font(180)
@@ -275,7 +268,6 @@ def draw_countdown_screen(surface, background_surface, game_manager, screen_w, s
 
 
 def draw_instruction_screen(surface, background_surface, screen_w, screen_h):
-    """あそびかた説明画面を描画する"""
     surface.blit(background_surface, (0, 0))
 
     char_w = 200
@@ -343,11 +335,12 @@ def draw_game_background(surface, background_surface, frame, result, smoothed_em
     render_frame(surface, frame, result, cam_width, 0)
     right_edge = surface.get_width() - 20
     
+    # 修正: Y座標を116から64に変更し、名前表示との余白を詰める
     _draw_text_chip(
         surface,
         f"あなた: {smoothed_emotion}",
         right=right_edge,
-        top=116,
+        top=64,
         size=24,
         chip_width=300,
         chip_height=44,
@@ -355,7 +348,6 @@ def draw_game_background(surface, background_surface, frame, result, smoothed_em
 
 
 def draw_developer_screen(surface, background_surface, frame, result, cam_width):
-    """開発者用の診断画面を描画する。"""
     screen_h = surface.get_height()
 
     surface.blit(background_surface, (0, 0))
@@ -417,14 +409,12 @@ def draw_developer_screen(surface, background_surface, frame, result, cam_width)
 
 
 def draw_name_select_screen(surface, background_surface, selector, screen_w, screen_h):
-    """GUIエディタから生成された名前選択画面 (絶対座標ベース)"""
     surface.blit(background_surface, (0, 0))
     
     font_l = settings.get_font(60)
     font_m = settings.get_font(28)
     font_s = settings.get_font(22)
 
-    # 1. 全体背景パネル
     main_panel_rect = pygame.Rect(60, 80, 1160, 320)
     try:
         panel_surf = pygame.Surface((main_panel_rect.w, main_panel_rect.h), flags=pygame.SRCALPHA)
@@ -433,16 +423,14 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
     except Exception:
         pygame.draw.rect(surface, settings.WII_TRANSLUCENT_BG, main_panel_rect, border_radius=12)
 
-    # 2. テキスト群
     title = font_l.render("プレイヤー名を選択", True, settings.TEXT_DARK)
-    surface.blit(title, (293.59375, 97.01953125))
+    surface.blit(title, (293.5, 97.0))
 
     hint = font_s.render("↑↓: 過去名を選択 / →: 入力ウィンドウ / Enter: 決定", True, settings.TEXT_DARK)
-    surface.blit(hint, (349.15625, 411.5859375))
+    surface.blit(hint, (349.1, 411.5))
 
-    # 3. リスト枠・入力枠
     list_rect = pygame.Rect(80, 196, 550, 180)
-    input_rect = pygame.Rect(650.00390625, 195.078125, 550, 180)
+    input_rect = pygame.Rect(650.0, 195.0, 550, 180)
     
     try:
         pygame.draw.rect(surface, settings.UI_LABEL_BG, list_rect, border_radius=12)
@@ -456,24 +444,28 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
     else:
         pygame.draw.rect(surface, settings.ACCENT_BLUE, list_rect, 3, border_radius=12)
 
-    # 4. 各枠のタイトル
     list_title = font_s.render("過去の名前", True, settings.TEXT_DARK)
     input_title = font_s.render("新しい名前入力", True, settings.TEXT_DARK)
     surface.blit(list_title, (90, 204))
     surface.blit(input_title, (660, 204))
 
-    # 5. リストの描画
+    # 修正: リストを2列×3行で配置する
     recent = selector.recent or []
-    recent_start_x, recent_start_y = (139.50390625, 248.08203125)
-    line_spacing = 36 
+    recent_start_x = 110      # 左端ベース
+    recent_start_y = 248      # 上端ベース
+    col_width = 240           # 列ごとの間隔幅
+    line_spacing = 36         # 行の高さ
     
     for i, name in enumerate(recent[:6]):
-        y = recent_start_y + (i * line_spacing)
+        col = i // 3  # 0 or 1
+        row = i % 3   # 0, 1, 2
+        x = recent_start_x + (col * col_width)
+        y = recent_start_y + (row * line_spacing)
+        
         prefix = "> " if (not selector.input_mode and selector.selected_index == i) else "  "
         txt = font_m.render(f"{prefix}{name}", True, settings.TEXT_DARK)
-        surface.blit(txt, (recent_start_x, y))
+        surface.blit(txt, (x, y))
 
-    # 6. 新しい名前の入力状態の描画
     input_font = settings.get_font(28)
     input_text = selector.name or ""
     input_surf = input_font.render(input_text, True, settings.TEXT_DARK)
@@ -481,7 +473,6 @@ def draw_name_select_screen(surface, background_surface, selector, screen_w, scr
 
 
 def draw_best_lists(surface, screen_w, screen_h, selected_name: str, avoid_rect: Optional[pygame.Rect] = None):
-    """Draw overall top10 and selected name top3 in a side panel (used on title/result)."""
     font_m = settings.get_font(20)
 
     all_best = highscore.get_all_names_best(10)
@@ -662,24 +653,11 @@ def draw_result_screen(surface, game_manager, cam_width, cam_height):
     surface.blit(nav_surf, nav_rect)
 
     _draw_back_hint(surface, text="[B] 戻る", left=20, bottom=18, size=22)
-
-    bottom_margin = 16
-    line_gap = 8
-
-    score_surf = font_s.render(f"Score: {game_manager.score}", True, settings.TEXT_DARK)
-    if getattr(game_manager, 'new_personal_best', False):
-        best_surf = font_s.render("ベストスコア！", True, settings.ACCENT_GREEN)
-        best_rect = best_surf.get_rect(centerx=panel_center_x, bottom=cam_height - bottom_margin)
-        score_rect = score_surf.get_rect(centerx=panel_center_x, bottom=best_rect.top - line_gap)
-        surface.blit(score_surf, score_rect)
-        surface.blit(best_surf, best_rect)
-    else:
-        score_rect = score_surf.get_rect(centerx=panel_center_x, bottom=cam_height - bottom_margin)
-        surface.blit(score_surf, score_rect)
+    
+    # 修正: 重複して表示されていた score_surf と best_surf の描画ブロックを削除しました。
 
 
 def draw_finish_screen(surface, background_surface, game_manager, screen_w, screen_h):
-    """ゲーム終了画面を描画する"""
     surface.blit(background_surface, (0, 0))
 
     font_l = settings.get_font(80)
@@ -698,30 +676,29 @@ def draw_finish_screen(surface, background_surface, game_manager, screen_w, scre
     surface.blit(score_surf, score_surf.get_rect(center=(cx, screen_h // 2)))
     surface.blit(restart_surf, restart_surf.get_rect(center=(cx, screen_h // 2 + 80)))
     
-    # 修正: 新記録の場合、「スコア更新中！」→「スコア更新」へ変更し、位置を下げる (+120 -> +160)
+    # 修正: 最終画面での新記録テキストを「ハイスコア更新！」に変更
     if getattr(game_manager, 'new_personal_best', False):
         font_flag = settings.get_font(28)
-        flag_surf = font_flag.render("スコア更新", True, settings.ACCENT_GREEN)
+        flag_surf = font_flag.render("ハイスコア更新！", True, settings.ACCENT_GREEN)
         surface.blit(flag_surf, flag_surf.get_rect(center=(cx, screen_h // 2 + 160)))
 
 
 def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: LifeDisplay):
-    """共通の UI（ライフやスコア）を描画する"""
     screen_w = surface.get_width()
     screen_h = surface.get_height()
 
-    # 1. ライフ表示（左上：維持）
     try:
         life_display.draw(game_manager.lives)
     except Exception:
         pass
 
-    # 2. プレイヤー名（右上：維持）
     right_edge = screen_w - 20
     chip_width = 300
     chip_height = 44
     player_name = getattr(game_manager, 'player_name', '名無し')
-    _draw_text_chip(
+    
+    # プレイヤー名（左画面・右上）
+    name_rect = _draw_text_chip(
         surface,
         f"名前: {player_name}",
         right=right_edge,
@@ -731,33 +708,31 @@ def draw_common_ui(surface, game_manager, cam_width, cam_height, life_display: L
         chip_height=chip_height,
     )
 
-    # 3. スコア表示（修正：左下へ移動 ＆ 動的スタイル適用）
+    # 修正: 新記録フラグ表示を左画面・右上の名前の下に新設
+    if getattr(game_manager, 'new_personal_best', False):
+        _draw_text_chip(
+            surface,
+            "スコア更新中！",
+            right=right_edge,
+            top=name_rect.bottom + 8,
+            size=22,
+            text_color=settings.ACCENT_GREEN,
+            chip_width=200,
+            chip_height=40,
+        )
+
     score_color, use_spine = settings.get_score_style(game_manager.score)
-    
-    # 左下の「エスケープ/戻る」ボタンがあった位置を基準に配置 (下端から64px浮かせる)
     score_y = screen_h - 64
     
-    score_rect = _draw_text_chip(
+    # スコア表示（左画面・左下）
+    _draw_text_chip(
         surface,
         f"Score: {game_manager.score}",
-        left=20,          # 左端から20px
+        left=20,
         top=score_y,
-        size=28,          # スコアを目立たせるため少し大きく
+        size=28,
         text_color=score_color,
         use_spine_font=use_spine,
         chip_width=240,
         chip_height=50,
     )
-
-    # 4. 新記録フラグ表示（修正：スコアの右隣に隣接 ＆ 文言を「スコア更新」に変更）
-    if getattr(game_manager, 'new_personal_best', False):
-        _draw_text_chip(
-            surface,
-            "スコア更新",
-            left=score_rect.right + 10,  # スコアチップのすぐ右
-            top=score_y + 3,             # 高さを微調整
-            size=22,
-            text_color=settings.ACCENT_GREEN,
-            chip_width=160,
-            chip_height=44,
-        )
