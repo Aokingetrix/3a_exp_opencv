@@ -49,8 +49,10 @@ def add_history(name: str, score: int, date: Optional[str] = None) -> None:
     save(data)
 
 def update_if_better(name: str, score: int) -> bool:
+    best_scores = get_best_for_name(name, n=1)
+    is_better = not best_scores or int(score) > int(best_scores[0])
     add_history(name, score)
-    return True
+    return is_better
 
 def get_all_names_best(n: int = 5) -> List[Dict[str, Any]]:
     data = load()
