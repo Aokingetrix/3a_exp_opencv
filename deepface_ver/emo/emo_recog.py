@@ -11,6 +11,9 @@ import time
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 
+from ..core.camera import backend_candidates
+from ..core.runtime import CAMERA_HEIGHT, CAMERA_WIDTH
+
 
 def analyze_emotion_with_fallback(img, actions: Optional[List[str]] = None, backends: Optional[List[str]] = None, enforce_detection: bool = False) -> Dict[str, Any]:
     if actions is None:
@@ -35,14 +38,29 @@ def analyze_emotion_with_fallback(img, actions: Optional[List[str]] = None, back
 
 
 class CameraManager_gpt:
-    def __init__(self, src=0):
-        self.cap = cv2.VideoCapture(src)
-        if not self.cap.isOpened():
-            raise RuntimeError("カメラを開けません。")
+    def __init__(self, src: int = 0, backend: str = "auto"):
+        self.cap = None
+        attempted = []
+        for backend_name, api in backend_candidates(cv2, backend):
+            attempted.append(backend_name)
+            cap = cv2.VideoCapture(src) if api is None else cv2.VideoCapture(src, api)
+            if cap.isOpened():
+                self.cap = cap
+                self.backend_name = backend_name
+                break
+            cap.release()
+        if self.cap is None:
+            raise RuntimeError(f"カメラを開けません。試行バックエンド: {', '.join(attempted)}")
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
     def get_frame(self):
         ret, frame = self.cap.read()
-        return frame if ret else None
+        if not ret:
+            return None
+        if frame.shape[1] != CAMERA_WIDTH or frame.shape[0] != CAMERA_HEIGHT:
+            frame = cv2.resize(frame, (CAMERA_WIDTH, CAMERA_HEIGHT))
+        return frame
 
     def release(self):
         self.cap.release()

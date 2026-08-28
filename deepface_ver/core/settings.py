@@ -3,6 +3,9 @@ import os
 import sys
 from pathlib import Path
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PACKAGE_ROOT / "data"
+
 # --- Wii風カラーパレット ---
 WII_BACKGROUND = (235, 235, 245)
 WII_CHECK = (220, 220, 230)
@@ -17,18 +20,18 @@ WII_SHADOW_COLOR = (0, 0, 0, 80)
 UI_PANEL_BG = (238, 246, 255, 245)
 UI_LABEL_BG = (248, 250, 255, 235)
 
-FONT_CANDIDATES = []
+FONT_CANDIDATES = [str(DATA_DIR / "fonts" / "NotoSansJP[wght].ttf")]
 if sys.platform.startswith("win"):
-    FONT_CANDIDATES = [
+    FONT_CANDIDATES.extend([
         r"C:\Windows\Fonts\Meiryo.ttc",
         r"C:\Windows\Fonts\YuGothic.ttf",
         r"C:\Windows\Fonts\msgothic.ttc",
-    ]
+    ])
 else:
-    FONT_CANDIDATES = [
+    FONT_CANDIDATES.extend([
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
+    ])
 
 FONT_PATH = None
 for p in FONT_CANDIDATES:
@@ -42,9 +45,6 @@ if not FONT_PATH:
 # === システム定数（絶対に削除しない） ===
 TILE_SIZE = 40
 RECOGNITION_HISTORY_SIZE = 3
-
-PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PACKAGE_ROOT / "data"
 
 def asset_path(*relative_parts):
     return str(DATA_DIR.joinpath(*relative_parts))

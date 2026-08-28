@@ -1,3 +1,3 @@
-# scripts package
-from . import main
+"""Executable entry points."""
+
 __all__ = ["main"]
