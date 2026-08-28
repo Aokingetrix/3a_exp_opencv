@@ -243,9 +243,7 @@ class GameManager:
         self.last_score_change = outcome.score_change
         self.last_life_change = outcome.life_change
         self.round_result_text = outcome.message
-        # Preserve fes2026 behaviour; the mismatch is fixed in the next branch.
-        if outcome.code in {"success", "fail_missing"}:
-            self.score += outcome.score_change
+        self.score += outcome.score_change
         self.lives += outcome.life_change
         if outcome.code == "success":
             self.round_duration_ms *= 0.95
