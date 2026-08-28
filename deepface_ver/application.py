@@ -5,6 +5,15 @@ from collections import deque, Counter
 import random
 import pygame.mixer
 
+from .core.runtime import (
+    CAMERA_HEIGHT,
+    CAMERA_WIDTH,
+    LOGICAL_HEIGHT,
+    LOGICAL_WIDTH,
+    RuntimeOptions,
+    configure_highscores,
+)
+
 try:
     from .emo.emo_recog import CameraManager_gpt, EmotionRecognizer_gpt
     from .core.game_manager import GameManager, GameState
@@ -22,12 +31,30 @@ except ImportError as e:
     sys.exit(1)
 
 
-def main():
+def _present(display, logical_surface, physical_size):
+    """Scale the 1280x480 logical canvas with letterboxing."""
+    if logical_surface is display:
+        pygame.display.flip()
+        return
+    physical_width, physical_height = physical_size
+    scale = min(physical_width / LOGICAL_WIDTH, physical_height / LOGICAL_HEIGHT)
+    target_size = (max(1, int(LOGICAL_WIDTH * scale)), max(1, int(LOGICAL_HEIGHT * scale)))
+    scaled = pygame.transform.smoothscale(logical_surface, target_size)
+    display.fill((0, 0, 0))
+    display.blit(
+        scaled,
+        ((physical_width - target_size[0]) // 2, (physical_height - target_size[1]) // 2),
+    )
+    pygame.display.flip()
+
+
+def main(options: RuntimeOptions | None = None):
+    options = options or RuntimeOptions()
     pygame.init()
     pygame.font.init()
 
     try:
-        cam = CameraManager_gpt()
+        cam = CameraManager_gpt(options.camera_index, options.camera_backend)
     except RuntimeError as e:
         print(f"カメラエラー: {e}")
         pygame.quit()
@@ -44,12 +71,16 @@ def main():
         pygame.quit()
         sys.exit(1)
 
-    CAM_WIDTH, CAM_HEIGHT = frame_for_size.shape[1], frame_for_size.shape[0]
-    SCREEN_WIDTH = CAM_WIDTH * 2
-    SCREEN_HEIGHT = CAM_HEIGHT
+    CAM_WIDTH, CAM_HEIGHT = CAMERA_WIDTH, CAMERA_HEIGHT
+    SCREEN_WIDTH, SCREEN_HEIGHT = LOGICAL_WIDTH, LOGICAL_HEIGHT
 
     try:
-        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        display = pygame.display.set_mode(options.window_size)
+        screen = (
+            display
+            if options.window_size == (SCREEN_WIDTH, SCREEN_HEIGHT)
+            else pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        )
         pygame.display.set_caption("あまのじゃくゲーム")
     except pygame.error as e:
         print(f"画面の初期化に失敗しました: {e}")
@@ -98,6 +129,7 @@ def main():
         spacing = 1
     )
 
+    configure_highscores("default", settings.DATA_DIR / "highscore.json")
     recognizer = EmotionRecognizer_gpt(scale_factor=0.75, backend="opencv")
     recognizer.start()
     game_manager = GameManager(SCREEN_WIDTH, SCREEN_HEIGHT, sounds)
@@ -310,14 +342,14 @@ def main():
 
         if developer_mode:
             drawing.draw_developer_screen(screen, background_surface, frame, result, CAM_WIDTH)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
 
         if selector.active:
             drawing.draw_name_select_screen(screen, background_surface, selector, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
@@ -326,33 +358,33 @@ def main():
             title_rect = drawing.draw_title_screen(screen, background_surface, floating_images)
             # 追加: キャッシュしたハイスコアを描画
             drawing.draw_title_highscores(screen, SCREEN_WIDTH, cached_best_all, cached_best_today)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.SKIP_SELECTION:
             drawing.draw_skip_selection_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.INSTRUCTION:
             drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
             drawing.draw_instruction_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.EMOTION_MAP:
             drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
             drawing.draw_emotion_map_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.COUNTDOWN:
             drawing.draw_countdown_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.display.flip()
+            _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
@@ -373,7 +405,7 @@ def main():
         if state != GameState.GAME_FINISH:
             drawing.draw_common_ui(screen, game_manager, CAM_WIDTH, CAM_HEIGHT, life_display)
 
-        pygame.display.flip()
+        _present(display, screen, options.window_size)
         clock.tick(game_manager.fps)
         frame_count += 1
 
