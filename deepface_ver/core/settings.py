@@ -1,10 +1,7 @@
 # settings.py moved into core
-import pygame
 import os
 import sys
 from pathlib import Path
-
-pygame.font.init()
 
 # --- Wii風カラーパレット ---
 WII_BACKGROUND = (235, 235, 245)
@@ -39,13 +36,7 @@ for p in FONT_CANDIDATES:
         FONT_PATH = p
         break
 
-if FONT_PATH:
-    try:
-        pygame.font.Font(FONT_PATH, 10)
-    except Exception:
-        print(f"警告: 指定フォント '{FONT_PATH}' の読み込みに失敗しました。デフォルトフォントを使用します。")
-        FONT_PATH = None
-else:
+if not FONT_PATH:
     print("警告: 利用可能なフォントが見つかりません。デフォルトフォントを使用します。")
 
 # === システム定数（絶対に削除しない） ===
@@ -101,6 +92,10 @@ def get_font(size: int, use_spine_font: bool = False):
     フォントオブジェクトを安全に取得する一元管理関数。
     drawing.py などの描画側は、直接 pygame.font.Font を呼ばずこれを使う。
     """
+    import pygame
+
+    if not pygame.font.get_init():
+        pygame.font.init()
     path = SPINE_FONT_PATH if use_spine_font else FONT_PATH
     try:
         return pygame.font.Font(path, size)

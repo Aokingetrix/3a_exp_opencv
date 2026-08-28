@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+testpaths = ["deepface_ver/tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["deepface_ver/legacy"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"

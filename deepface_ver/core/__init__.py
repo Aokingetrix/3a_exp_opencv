@@ -1,3 +1,7 @@
-# core package
-from . import settings, utils, game_manager
-__all__ = ["settings", "utils", "game_manager"]
+"""Core package.
+
+Submodules are intentionally not imported eagerly so rule and persistence tests
+do not require the optional Pygame runtime.
+"""
+
+__all__ = ["game_manager", "highscore", "models", "settings", "utils"]
