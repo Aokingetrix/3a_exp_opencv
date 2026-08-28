@@ -57,14 +57,26 @@ class GameManagerTests(unittest.TestCase):
         self.assertEqual(2850.0, self.game.round_duration_ms)
         self.assertEqual(1, self.sounds["success"].play_count)
 
-    def test_refactor_preserves_match_score_quirk(self) -> None:
+    def test_match_failure_applies_recorded_score_change(self) -> None:
         self.game.score = 100
         self.game.npc_emotions = ["ニコニコ"]
         self.game.player_emotion_history = ["ニコニコ"]
         self.game.judge()
         self.assertEqual(-50, self.game.last_score_change)
-        self.assertEqual(100, self.game.score)
+        self.assertEqual(50, self.game.score)
         self.assertEqual(2, self.game.lives)
+
+    def test_neutral_and_missing_failures_apply_ten_point_penalty(self) -> None:
+        for history, expected_code in ((["シーン"], "fail_neutral"), ([], "fail_missing")):
+            with self.subTest(expected_code=expected_code):
+                self.game.score = 0
+                self.game.lives = 3
+                self.game.npc_emotions = ["ニコニコ"]
+                self.game.player_emotion_history = history
+                result = self.game.judge()
+                self.assertEqual(expected_code, result.code)
+                self.assertEqual(-10, self.game.score)
+                self.assertEqual(2, self.game.lives)
 
     def test_difficulty_uses_score_thresholds(self) -> None:
         for score, expected_count in ((0, 1), (500, 2), (1500, 3)):

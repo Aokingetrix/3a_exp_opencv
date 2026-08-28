@@ -150,9 +150,9 @@ def main():
         s_key_pressed = cancel_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
         
         for event in pygame.event.get():
-            # if event.type == pygame.QUIT:
-            #     running = False
-            #     break
+            if event.type == pygame.QUIT:
+                running = False
+                break
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     mods = pygame.key.get_mods()
