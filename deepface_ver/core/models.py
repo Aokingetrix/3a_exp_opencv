@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ class RecognitionResult:
     classifier: str = "deepface_emotion_skip"
 
     @classmethod
-    def from_mapping(cls, value: Mapping[str, Any]) -> "RecognitionResult":
+    def from_mapping(cls, value: Mapping[str, Any]) -> RecognitionResult:
         return cls(
             top_emotion=str(value.get("top_emotion", "探し中...")),
             scores=dict(value.get("scores", {})),

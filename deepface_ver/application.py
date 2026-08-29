@@ -13,6 +13,7 @@ from .core.runtime import (
     RuntimeOptions,
     configure_highscores,
 )
+from .core.theme import ThemeError, load_theme
 
 try:
     from .emo.emo_recog import CameraManager_gpt, EmotionRecognizer_gpt
@@ -54,6 +55,14 @@ def main(options: RuntimeOptions | None = None):
     pygame.font.init()
 
     try:
+        theme = load_theme(settings.DATA_DIR / "theme.toml", options.theme_dir)
+        settings.apply_theme(theme)
+    except ThemeError as error:
+        print(f"テーマエラー: {error}")
+        pygame.quit()
+        return 2
+
+    try:
         cam = CameraManager_gpt(options.camera_index, options.camera_backend)
     except RuntimeError as e:
         print(f"カメラエラー: {e}")
@@ -81,7 +90,7 @@ def main(options: RuntimeOptions | None = None):
             if options.window_size == (SCREEN_WIDTH, SCREEN_HEIGHT)
             else pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         )
-        pygame.display.set_caption("あまのじゃくゲーム")
+        pygame.display.set_caption(settings.CURRENT_THEME_NAME)
     except pygame.error as e:
         print(f"画面の初期化に失敗しました: {e}")
         cam.release()
@@ -103,11 +112,19 @@ def main(options: RuntimeOptions | None = None):
         pygame.quit()
         sys.exit(1)
 
-    background_surface = utils.create_checkerboard_surface(
-        SCREEN_WIDTH, SCREEN_HEIGHT, 
-        settings.WII_BACKGROUND, settings.WII_BROWN, 
-        settings.TILE_SIZE
+    default_background = settings.BACKGROUND_PATHS.get("default")
+    background_keys = (
+        "title", "menu", "instruction", "emotion_map", "name_select",
+        "countdown", "gameplay", "result", "finish",
     )
+    backgrounds = {
+        key: utils.create_background_surface(
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            settings.BACKGROUND_PATHS.get(key, default_background),
+        )
+        for key in background_keys
+    }
 
     timer_display = Timer(
         screen_surface=screen,
@@ -129,7 +146,7 @@ def main(options: RuntimeOptions | None = None):
         spacing = 1
     )
 
-    configure_highscores("default", settings.DATA_DIR / "highscore.json")
+    configure_highscores(theme.theme_id, settings.DATA_DIR / "highscore.json")
     recognizer = EmotionRecognizer_gpt(scale_factor=0.75, backend="opencv")
     recognizer.start()
     game_manager = GameManager(SCREEN_WIDTH, SCREEN_HEIGHT, sounds)
@@ -341,21 +358,21 @@ def main(options: RuntimeOptions | None = None):
                 current_bgm = "finish"
 
         if developer_mode:
-            drawing.draw_developer_screen(screen, background_surface, frame, result, CAM_WIDTH)
+            drawing.draw_developer_screen(screen, backgrounds["gameplay"], frame, result, CAM_WIDTH)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
 
         if selector.active:
-            drawing.draw_name_select_screen(screen, background_surface, selector, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_name_select_screen(screen, backgrounds["name_select"], selector, SCREEN_WIDTH, SCREEN_HEIGHT)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
 
         if state == GameState.TITLE:
-            title_rect = drawing.draw_title_screen(screen, background_surface, floating_images)
+            drawing.draw_title_screen(screen, backgrounds["title"], floating_images)
             # 追加: キャッシュしたハイスコアを描画
             drawing.draw_title_highscores(screen, SCREEN_WIDTH, cached_best_all, cached_best_today)
             _present(display, screen, options.window_size)
@@ -363,33 +380,34 @@ def main(options: RuntimeOptions | None = None):
             frame_count += 1
             continue
         elif state == GameState.SKIP_SELECTION:
-            drawing.draw_skip_selection_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_skip_selection_screen(screen, backgrounds["menu"], SCREEN_WIDTH, SCREEN_HEIGHT)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.INSTRUCTION:
-            drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
-            drawing.draw_instruction_screen(screen, background_surface, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_game_background(screen, backgrounds["instruction"], frame, result, smoothed_emotion, CAM_WIDTH)
+            drawing.draw_instruction_screen(screen, backgrounds["instruction"], SCREEN_WIDTH, SCREEN_HEIGHT)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.EMOTION_MAP:
-            drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
-            drawing.draw_emotion_map_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_game_background(screen, backgrounds["emotion_map"], frame, result, smoothed_emotion, CAM_WIDTH)
+            drawing.draw_emotion_map_screen(screen, backgrounds["emotion_map"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
         elif state == GameState.COUNTDOWN:
-            drawing.draw_countdown_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_countdown_screen(screen, backgrounds["countdown"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
             _present(display, screen, options.window_size)
             clock.tick(game_manager.fps)
             frame_count += 1
             continue
 
-        drawing.draw_game_background(screen, background_surface, frame, result, smoothed_emotion, CAM_WIDTH)
+        active_background = backgrounds["result"] if state == GameState.RESULT else backgrounds["gameplay"]
+        drawing.draw_game_background(screen, active_background, frame, result, smoothed_emotion, CAM_WIDTH)
 
         if state == GameState.ROUND_START:
             drawing.draw_round_start_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
@@ -398,7 +416,7 @@ def main(options: RuntimeOptions | None = None):
         elif state == GameState.RESULT:
             drawing.draw_result_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
         elif state == GameState.GAME_FINISH:
-            drawing.draw_finish_screen(screen, background_surface, game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
+            drawing.draw_finish_screen(screen, backgrounds["finish"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
             # 追加: 終了画面の右側に今回の順位と自己ベストを描画
             drawing.draw_finish_highscores(screen, SCREEN_WIDTH, game_manager)
 
