@@ -1,6 +1,8 @@
 # Pythonが自動生成するキャッシュ
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # OS固有のファイル
 .DS_Store
