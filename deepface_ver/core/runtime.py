@@ -37,13 +37,19 @@ def parse_size(value: str) -> tuple[int, int]:
 def user_data_root() -> Path:
     if sys.platform.startswith("win"):
         base = os.environ.get("LOCALAPPDATA")
-        return Path(base) / APP_DIRECTORY if base else Path.home() / "AppData" / "Local" / APP_DIRECTORY
+        return (
+            Path(base) / APP_DIRECTORY
+            if base
+            else Path.home() / "AppData" / "Local" / APP_DIRECTORY
+        )
     base = os.environ.get("XDG_DATA_HOME")
     return Path(base) / APP_DIRECTORY if base else Path.home() / ".local" / "share" / APP_DIRECTORY
 
 
 def theme_data_dir(theme_id: str) -> Path:
-    safe_id = "".join(character for character in theme_id if character.isalnum() or character in "-_")
+    safe_id = "".join(
+        character for character in theme_id if character.isalnum() or character in "-_"
+    )
     if not safe_id:
         raise ValueError("テーマIDには英数字、ハイフン、アンダースコアを使用してください")
     return user_data_root() / "themes" / safe_id

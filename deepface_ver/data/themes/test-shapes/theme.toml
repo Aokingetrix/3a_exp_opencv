@@ -1,0 +1,10 @@
+schema_version = 1
+id = "test-shapes"
+display_name = "Test Shapes"
+
+[text]
+title = "TEST THEME"
+
+[backgrounds]
+default = "background.ppm"
+title = "background.ppm"

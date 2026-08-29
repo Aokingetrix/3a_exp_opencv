@@ -1,7 +1,9 @@
-import pygame
 import random
+
+import pygame
+
 from ..core.utils import render_image
-from ..core import settings
+
 
 class FloatingImage:
     def __init__(self, image_path, screen_w, screen_h):
@@ -17,8 +19,10 @@ class FloatingImage:
         self.y = random.uniform(0, screen_h - self.h)
         self.vx = random.uniform(-1.0, 1.0)
         self.vy = random.uniform(-0.5, 0.5)
-        if -0.2 < self.vx < 0.2: self.vx = 0.5 * random.choice([-1, 1])
-        if -0.2 < self.vy < 0.2: self.vy = 0.3 * random.choice([-1, 1])
+        if -0.2 < self.vx < 0.2:
+            self.vx = 0.5 * random.choice([-1, 1])
+        if -0.2 < self.vy < 0.2:
+            self.vy = 0.3 * random.choice([-1, 1])
 
     def update(self):
         self.x += self.vx
@@ -37,11 +41,23 @@ class FloatingImage:
             self.y = self.screen_h - self.h
 
     def draw(self, surface):
-        render_image(surface, self.image_path, int(self.x), int(self.y), self.w, self.h, fill_bg=False)
+        render_image(
+            surface, self.image_path, int(self.x), int(self.y), self.w, self.h, fill_bg=False
+        )
 
 
 class Timer:
-    def __init__(self, screen_surface, pos, icon_path, font_path, font_size, text_color, bg_color, shadow_color):
+    def __init__(
+        self,
+        screen_surface,
+        pos,
+        icon_path,
+        font_path,
+        font_size,
+        text_color,
+        bg_color,
+        shadow_color,
+    ):
         self.screen = screen_surface
         self.pos = pos
         self.text_color = text_color
@@ -55,23 +71,28 @@ class Timer:
             icon_surf_raw = pygame.image.load(icon_path)
             aspect_ratio = icon_surf_raw.get_width() / icon_surf_raw.get_height()
             self.icon_width = int(self.icon_height * aspect_ratio)
-            self.icon_surface = pygame.transform.scale(icon_surf_raw, (self.icon_width, self.icon_height))
+            self.icon_surface = pygame.transform.scale(
+                icon_surf_raw, (self.icon_width, self.icon_height)
+            )
         except Exception as e:
             print(f"タイマーアイコンの読み込みエラー: {e} (パス: {icon_path})")
             self.icon_surface = None
             self.icon_width = 0
         try:
             self.font = pygame.font.Font(font_path, font_size)
-        except IOError:
-            print(f"警告: タイマー用フォント '{font_path}' が見つかりません。デフォルトフォントを使用します。")
+        except OSError:
+            print(f"警告: タイマー用フォント '{font_path}' が見つかりません。")
+            print("デフォルトフォントを使用します。")
             self.font = pygame.font.Font(None, font_size + 4)
         except Exception as e:
             print(f"タイマーフォントエラー: {e}")
             self.font = pygame.font.Font(None, font_size + 4)
         self.text_surface = self.font.render("0.0", True, self.text_color)
+
     def update(self, remaining_seconds):
         text = f"{remaining_seconds:.1f}"
         self.text_surface = self.font.render(text, True, self.text_color)
+
     def draw(self):
         text_width = self.text_surface.get_width()
         text_height = self.text_surface.get_height()
@@ -84,14 +105,13 @@ class Timer:
             bg_surface.fill((0, 0, 0, 0))
         except ValueError as e:
             print(f"Pygameエラー: Surface作成失敗。 {e}")
-            return 
+            return
         border_radius = total_height // 2
-        shadow_rect = pygame.Rect(
-            self.shadow_offset, self.shadow_offset,
-            total_width, total_height
-        )
+        shadow_rect = pygame.Rect(self.shadow_offset, self.shadow_offset, total_width, total_height)
         try:
-            pygame.draw.rect(bg_surface, self.shadow_color, shadow_rect, border_radius=border_radius)
+            pygame.draw.rect(
+                bg_surface, self.shadow_color, shadow_rect, border_radius=border_radius
+            )
         except TypeError:
             pygame.draw.rect(bg_surface, self.shadow_color, shadow_rect)
         main_rect = pygame.Rect(0, 0, total_width, total_height)
@@ -107,6 +127,7 @@ class Timer:
         text_y = (total_height - text_height) // 2
         bg_surface.blit(self.text_surface, (text_x, text_y))
         self.screen.blit(bg_surface, self.pos)
+
 
 class LifeDisplay:
     def __init__(self, screen_surface, icon_path, icon_size, pos, max_lives=3, spacing=5):
@@ -124,6 +145,7 @@ class LifeDisplay:
         self.empty_icon_surface = self.icon_surface.copy()
         self.empty_icon_surface.fill((50, 50, 50), special_flags=pygame.BLEND_RGBA_MULT)
         self.max_lives = max_lives
+
     def draw(self, current_lives):
         draw_x = self.pos[0]
         draw_y = self.pos[1]

@@ -19,19 +19,27 @@ WII_TRANSLUCENT_BG = (245, 245, 255, 250)
 WII_SHADOW_COLOR = (0, 0, 0, 80)
 UI_PANEL_BG = (238, 246, 255, 245)
 UI_LABEL_BG = (248, 250, 255, 235)
+CURRENT_THEME_ID = "default"
+CURRENT_THEME_NAME = "あまのじゃくゲーム"
+THEME_TEXT = {}
+BACKGROUND_PATHS = {}
 
 FONT_CANDIDATES = [str(DATA_DIR / "fonts" / "NotoSansJP[wght].ttf")]
 if sys.platform.startswith("win"):
-    FONT_CANDIDATES.extend([
-        r"C:\Windows\Fonts\Meiryo.ttc",
-        r"C:\Windows\Fonts\YuGothic.ttf",
-        r"C:\Windows\Fonts\msgothic.ttc",
-    ])
+    FONT_CANDIDATES.extend(
+        [
+            r"C:\Windows\Fonts\Meiryo.ttc",
+            r"C:\Windows\Fonts\YuGothic.ttf",
+            r"C:\Windows\Fonts\msgothic.ttc",
+        ]
+    )
 else:
-    FONT_CANDIDATES.extend([
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ])
+    FONT_CANDIDATES.extend(
+        [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+    )
 
 FONT_PATH = None
 for p in FONT_CANDIDATES:
@@ -46,8 +54,10 @@ if not FONT_PATH:
 TILE_SIZE = 40
 RECOGNITION_HISTORY_SIZE = 3
 
+
 def asset_path(*relative_parts):
     return str(DATA_DIR.joinpath(*relative_parts))
+
 
 BGM_PATHS = {
     "title": asset_path("sounds", "bgm_title.mp3"),
@@ -80,12 +90,51 @@ EMOTION_IMAGE_PATHS = {
     "シーン": NO_EXP_IMAGE_PATH,
 }
 
+
+def apply_theme(theme):
+    """Apply a validated ThemeManifest to legacy settings consumers."""
+    global CURRENT_THEME_ID, CURRENT_THEME_NAME, THEME_TEXT, BACKGROUND_PATHS
+    global CLOCK_IMAGE_PATH, HEART_IMAGE_PATH, NO_EXP_IMAGE_PATH, QUESTION_IMAGE_PATH
+    global HUMAN_HAPPY_PATH, HUMAN_CRY_PATH, HUMAN_ANGRY_PATH, HUMAN_SURPRISE_PATH
+    global HUMAN_NO_EXP_PATH, HUMAN_FACE_IMAGE_PATH, BGM_PATHS, SE_PATHS, EMOTION_IMAGE_PATHS
+
+    CURRENT_THEME_ID = theme.theme_id
+    CURRENT_THEME_NAME = theme.display_name
+    THEME_TEXT = dict(theme.text)
+    BACKGROUND_PATHS = dict(theme.backgrounds)
+    BGM_PATHS = dict(theme.bgm)
+    SE_PATHS = dict(theme.se)
+    images = theme.images
+    CLOCK_IMAGE_PATH = images["clock"]
+    HEART_IMAGE_PATH = images["heart"]
+    QUESTION_IMAGE_PATH = images["question"]
+    NO_EXP_IMAGE_PATH = images["no_exp"]
+    HUMAN_HAPPY_PATH = images["human_happy"]
+    HUMAN_CRY_PATH = images["human_sad"]
+    HUMAN_ANGRY_PATH = images["human_angry"]
+    HUMAN_SURPRISE_PATH = images["human_surprise"]
+    HUMAN_NO_EXP_PATH = images["human_neutral"]
+    HUMAN_FACE_IMAGE_PATH = HUMAN_NO_EXP_PATH
+    EMOTION_IMAGE_PATHS = {
+        "ニコニコ": images["emotion_happy"],
+        "シクシク": images["emotion_sad"],
+        "ムカムカ": images["emotion_angry"],
+        "ビックリ": images["emotion_surprise"],
+        "シーン": images["emotion_neutral"],
+    }
+
+
+def theme_text(key, default):
+    return THEME_TEXT.get(key, default)
+
+
 # === 追加機能: 動的フォント＆スタイル管理 ===
 
 # Settings Spine Font 用のパス（存在しなければ通常のフォントにフォールバック）
-SPINE_FONT_PATH = asset_path("fonts", "spine_font.ttf") 
+SPINE_FONT_PATH = asset_path("fonts", "spine_font.ttf")
 if not os.path.exists(SPINE_FONT_PATH):
     SPINE_FONT_PATH = FONT_PATH
+
 
 def get_font(size: int, use_spine_font: bool = False):
     """
@@ -103,20 +152,21 @@ def get_font(size: int, use_spine_font: bool = False):
         # フォント読み込みに失敗した場合はデフォルトフォントで少し大きめに
         return pygame.font.Font(None, size + 4)
 
+
 def get_score_style(score: int):
     """
     スコア到達度に応じた色と、特殊フォント（Spine Font）を使用するかを返す。
     閾値: 100, 500, 1000, 2000, 3000
     """
     if score >= 3000:
-        return (255, 215, 0), True      # ゴールド + 特殊フォント
+        return (255, 215, 0), True  # ゴールド + 特殊フォント
     elif score >= 2000:
-        return (148, 0, 211), True      # ダークバイオレット + 特殊フォント
+        return (148, 0, 211), True  # ダークバイオレット + 特殊フォント
     elif score >= 1000:
-        return (255, 50, 50), True      # レッド + 特殊フォント
+        return (255, 50, 50), True  # レッド + 特殊フォント
     elif score >= 500:
-        return (255, 140, 0), False     # ダークオレンジ + 通常フォント
+        return (255, 140, 0), False  # ダークオレンジ + 通常フォント
     elif score >= 100:
-        return (218, 165, 32), False    # ゴールデンロッド + 通常フォント
-        
-    return TEXT_DARK, False             # 初期状態
+        return (218, 165, 32), False  # ゴールデンロッド + 通常フォント
+
+    return TEXT_DARK, False  # 初期状態

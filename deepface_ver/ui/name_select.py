@@ -1,16 +1,18 @@
 # FILE: deepface_ver/ui/name_select.py
 
+
 import pygame
-from typing import List, Optional
+
 from ..core import highscore
+
 
 class NameSelector:
     def __init__(self) -> None:
         self.active: bool = False
         self.name: str = "名無し"
         self.cursor_pos: int = len(self.name)
-        self.recent: List[str] = highscore.load().get("recent", ["名無し"])[:6]
-        self.selected_index: Optional[int] = None
+        self.recent: list[str] = highscore.load().get("recent", ["名無し"])[:6]
+        self.selected_index: int | None = None
         self.input_mode: bool = False
         self.done: bool = False
         self.cancelled: bool = False
@@ -33,7 +35,7 @@ class NameSelector:
     def handle_event(self, event: pygame.event.EventType) -> None:
         if not self.active:
             return
-            
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_b or event.key == pygame.K_ESCAPE:
                 self.cancelled = True
@@ -68,13 +70,13 @@ class NameSelector:
                     pygame.key.stop_text_input()
                     self.editing_text = ""
                 return
-            
+
             if event.key == pygame.K_BACKSPACE:
                 if self.input_mode and self.cursor_pos > 0:
                     self.name = self.name[: self.cursor_pos - 1] + self.name[self.cursor_pos :]
                     self.cursor_pos -= 1
                 return
-            
+
             if event.key == pygame.K_UP:
                 if not self.input_mode and self.recent:
                     if self.selected_index is None:
@@ -82,7 +84,7 @@ class NameSelector:
                     else:
                         self.selected_index = max(0, self.selected_index - 1)
                 return
-            
+
             if event.key == pygame.K_DOWN:
                 if not self.input_mode and self.recent:
                     if self.selected_index is None:
@@ -95,7 +97,7 @@ class NameSelector:
         elif event.type == pygame.TEXTEDITING:
             if self.input_mode:
                 self.editing_text = event.text
-                
+
         # 追加: IME確定後、または通常の文字入力イベント処理
         elif event.type == pygame.TEXTINPUT:
             if self.input_mode:
@@ -103,7 +105,7 @@ class NameSelector:
                 self.cursor_pos += len(event.text)
                 self.editing_text = ""
 
-    def get_result(self) -> Optional[str]:
+    def get_result(self) -> str | None:
         if self.done:
             return self.name
         return None
