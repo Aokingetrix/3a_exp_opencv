@@ -109,6 +109,12 @@ class GameManager:
         self.state = GameState.COUNTDOWN
         self.countdown_start_time = self._now_ms()
 
+    @property
+    def countdown_remaining_ms(self) -> int:
+        """Return countdown time using the state machine's injected clock."""
+        elapsed_ms = self._now_ms() - self.countdown_start_time
+        return max(0, self.countdown_duration_ms - elapsed_ms)
+
     def start_new_round(self) -> None:
         if self.lives <= 0:
             self.state = GameState.GAME_FINISH

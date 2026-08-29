@@ -1,6 +1,6 @@
 import pygame
 
-from . import settings
+from . import assets, settings
 
 
 def draw_text(surface, text, pos, color=settings.TEXT_DARK, size=24):
@@ -39,15 +39,7 @@ def render_frame(surface, frame, result, x, y):
 
 
 def create_checkerboard_surface(width, height, color1, color2, tile_size):
-    background_surface = pygame.Surface((width, height))
-    for y in range(0, height, tile_size):
-        for x in range(0, width, tile_size):
-            if (x // tile_size + y // tile_size) % 2 == 0:
-                color = color1
-            else:
-                color = color2
-            pygame.draw.rect(background_surface, color, (x, y, tile_size, tile_size))
-    return background_surface
+    return assets.get_checkerboard(width, height, color1, color2, tile_size).copy()
 
 
 def create_background_surface(width, height, image_path=None):
@@ -62,12 +54,7 @@ def create_background_surface(width, height, image_path=None):
     if not image_path:
         return fallback
     try:
-        image = pygame.image.load(image_path).convert()
-        scale = max(width / image.get_width(), height / image.get_height())
-        scaled_size = (int(image.get_width() * scale), int(image.get_height() * scale))
-        scaled = pygame.transform.smoothscale(image, scaled_size)
-        x = (width - scaled_size[0]) // 2
-        y = (height - scaled_size[1]) // 2
+        scaled, x, y = assets.get_cover_image(image_path, width, height)
         fallback.blit(scaled, (x, y))
         return fallback
     except (OSError, pygame.error) as error:
@@ -77,22 +64,9 @@ def create_background_surface(width, height, image_path=None):
 
 def render_image(surface, image_path, x, y, w, h, fill_bg=True):
     try:
-        image_surface = pygame.image.load(image_path)
-        img_rect = image_surface.get_rect()
-        img_w, img_h = img_rect.width, img_rect.height
-        if img_w == 0 or img_h == 0:
-            raise pygame.error(f"画像サイズが0です: {image_path}")
-        img_aspect = img_w / img_h
-        area_aspect = w / h
-        if img_aspect > area_aspect:
-            new_w = int(w)
-            new_h = int(new_w / img_aspect)
-        else:
-            new_h = int(h)
-            new_w = int(new_h * img_aspect)
-        scaled_surface = pygame.transform.scale(image_surface, (new_w, new_h))
-        draw_x = x + (w - new_w) // 2
-        draw_y = y + (h - new_h) // 2
+        scaled_surface, offset_x, offset_y = assets.get_contained_image(image_path, w, h)
+        draw_x = x + offset_x
+        draw_y = y + offset_y
         if fill_bg:
             surface.fill(settings.WII_BACKGROUND, (x, y, w, h))
         surface.blit(scaled_surface, (draw_x, draw_y))

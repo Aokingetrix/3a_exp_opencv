@@ -7,6 +7,16 @@ from ...core.utils import render_image
 from .common import draw_back_hint as _draw_back_hint
 
 
+def _countdown_number(remaining_ms):
+    if remaining_ms > 2000:
+        return 3
+    if remaining_ms > 1000:
+        return 2
+    if remaining_ms > 0:
+        return 1
+    return 0
+
+
 def draw_title_screen(surface, background_surface, floating_images):
     surface.blit(background_surface, (0, 0))
     for img in floating_images:
@@ -206,17 +216,9 @@ def draw_countdown_screen(surface, background_surface, game_manager, screen_w, s
 
     font_huge = settings.get_font(180)
 
-    elapsed_ms = pygame.time.get_ticks() - game_manager.countdown_start_time
-    remaining_ms = game_manager.countdown_duration_ms - elapsed_ms
+    remaining_ms = game_manager.countdown_remaining_ms
 
-    if remaining_ms > 2000:
-        count = 3
-    elif remaining_ms > 1000:
-        count = 2
-    elif remaining_ms > 0:
-        count = 1
-    else:
-        count = 0
+    count = _countdown_number(remaining_ms)
 
     if count > 0:
         count_surf = font_huge.render(str(count), True, settings.ACCENT_BLUE)

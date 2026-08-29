@@ -86,14 +86,19 @@ python -m deepface_ver.scripts.main
 ```bash
 python -m pip install -r requirements-dev.txt pygame==2.6.1
 pytest
-ruff check deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
-ruff format --check deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
+ruff check deepface_ver/application.py deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
+ruff format --check deepface_ver/application.py deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
 ```
 
 高速CIはWindows/Linuxの両方でハードウェア非依存テストを実行します。TensorFlow・DeepFaceを含む完全な依存確認は`Full Runtime Smoke`ワークフローを手動実行してください。実機確認ではカメラ、日本語、BGM/SE、全画面遷移、スコア再読込を確認します。
 
+### 性能確認
+
+タイトル画面で`E`、`N`、`H`の順にキーを押すと開発者画面へ移動します。表示FPS、1フレームの処理時間、表情認識の遅延を同時に確認できます。`R`でタイトルへ戻ります。
+
 ## 補足
 
 - 初回起動ではDeepFaceのモデル取得とTensorFlow初期化に時間がかかります。
+- 画像と日本語フォントは起動時に一度読み込み、ゲーム中はキャッシュした素材を使用します。
 - 顔検出には同梱したHaar Cascadeを使用します。
 - 日本語フォントはOFLライセンスのNoto Sans JPを同梱し、OSフォントより優先します。

@@ -5,6 +5,7 @@ import unittest
 
 from deepface_ver.core.game_manager import GameManager, GameState
 from deepface_ver.core.models import GameCommand
+from deepface_ver.ui.screens.intro import _countdown_number
 
 
 class FakeSound:
@@ -44,6 +45,20 @@ class GameManagerTests(unittest.TestCase):
         self.assertEqual(GameState.EMOTION_MAP, self.game.state)
         self.game.start_game()
         self.assertEqual(GameState.COUNTDOWN, self.game.state)
+        expected = {
+            0: (3000, 3),
+            999: (2001, 3),
+            1000: (2000, 2),
+            1999: (1001, 2),
+            2000: (1000, 1),
+            2999: (1, 1),
+            3000: (0, 0),
+        }
+        for elapsed_ms, (remaining_ms, count) in expected.items():
+            with self.subTest(elapsed_ms=elapsed_ms):
+                self.clock.value = elapsed_ms
+                self.assertEqual(remaining_ms, self.game.countdown_remaining_ms)
+                self.assertEqual(count, _countdown_number(remaining_ms))
         self.clock.value = 3000
         self.game.handle("探し中...", GameCommand())
         self.assertEqual(GameState.ROUND_START, self.game.state)

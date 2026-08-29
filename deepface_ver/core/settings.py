@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 
+from . import assets
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PACKAGE_ROOT / "data"
 
@@ -147,10 +149,20 @@ def get_font(size: int, use_spine_font: bool = False):
         pygame.font.init()
     path = SPINE_FONT_PATH if use_spine_font else FONT_PATH
     try:
-        return pygame.font.Font(path, size)
+        return assets.get_font(path, size)
     except Exception:
         # フォント読み込みに失敗した場合はデフォルトフォントで少し大きめに
-        return pygame.font.Font(None, size + 4)
+        return assets.get_font(None, size + 4)
+
+
+COMMON_FONT_SIZES = (16, 18, 20, 22, 24, 28, 30, 35, 36, 40, 46, 60, 70, 80, 180)
+
+
+def preload_fonts() -> None:
+    """Create fonts used by normal screens before entering the frame loop."""
+    for size in COMMON_FONT_SIZES:
+        get_font(size)
+    get_font(28, use_spine_font=True)
 
 
 def get_score_style(score: int):

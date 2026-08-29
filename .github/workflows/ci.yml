@@ -23,5 +23,5 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements-dev.txt pygame==2.6.1
       - run: python -m pytest
-      - run: ruff check deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
-      - run: ruff format --check deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
+      - run: ruff check deepface_ver/application.py deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui
+      - run: ruff format --check deepface_ver/application.py deepface_ver/core deepface_ver/scripts deepface_ver/tests deepface_ver/ui

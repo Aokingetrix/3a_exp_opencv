@@ -23,7 +23,15 @@ def draw_game_background(surface, background_surface, frame, result, smoothed_em
     )
 
 
-def draw_developer_screen(surface, background_surface, frame, result, cam_width):
+def draw_developer_screen(
+    surface,
+    background_surface,
+    frame,
+    result,
+    cam_width,
+    display_fps=0.0,
+    frame_time_ms=0,
+):
     screen_h = surface.get_height()
 
     surface.blit(background_surface, (0, 0))
@@ -71,6 +79,8 @@ def draw_developer_screen(surface, background_surface, frame, result, cam_width)
     draw_text(surface, f"detector: {detector}", (20, y), size=20)
     y += 30
     draw_text(surface, f"classifier: {classifier}", (20, y), size=20)
+    y += 30
+    draw_text(surface, f"display: {display_fps:.1f} FPS / {frame_time_ms} ms", (20, y), size=20)
     y += 30
 
     if box and isinstance(box, dict):

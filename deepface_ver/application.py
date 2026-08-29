@@ -1,9 +1,10 @@
-import sys
-import pygame
-from pygame.locals import KEYDOWN, K_ESCAPE, K_s, K_e, K_n, K_h, K_r
-from collections import deque, Counter
 import random
+import sys
+from collections import Counter, deque
+
+import pygame
 import pygame.mixer
+from pygame.locals import K_ESCAPE, KEYDOWN, K_e, K_h, K_n, K_r, K_s
 
 from .core.runtime import (
     CAMERA_HEIGHT,
@@ -16,14 +17,14 @@ from .core.runtime import (
 from .core.theme import ThemeError, load_theme
 
 try:
-    from .emo.emo_recog import CameraManager_gpt, EmotionRecognizer_gpt
     from .core.game_manager import GameManager, GameState
+    from .emo.emo_recog import CameraManager_gpt, EmotionRecognizer_gpt
 except ImportError as e:
     print(f"エラー: 必要なモジュールが見つかりません。({e})")
     sys.exit(1)
 
 try:
-    from .core import highscore, settings, utils
+    from .core import assets, highscore, settings, utils
     from .ui import drawing
     from .ui.name_select import NameSelector
     from .ui.ui_elements import FloatingImage, LifeDisplay, Timer
@@ -98,6 +99,9 @@ def main(options: RuntimeOptions | None = None):
         sys.exit(1)
 
     clock = pygame.time.Clock()
+    assets.clear_asset_caches()
+    assets.preload_images(theme.images.values())
+    settings.preload_fonts()
 
     try:
         sounds = {
@@ -114,8 +118,15 @@ def main(options: RuntimeOptions | None = None):
 
     default_background = settings.BACKGROUND_PATHS.get("default")
     background_keys = (
-        "title", "menu", "instruction", "emotion_map", "name_select",
-        "countdown", "gameplay", "result", "finish",
+        "title",
+        "menu",
+        "instruction",
+        "emotion_map",
+        "name_select",
+        "countdown",
+        "gameplay",
+        "result",
+        "finish",
     )
     backgrounds = {
         key: utils.create_background_surface(
@@ -134,16 +145,16 @@ def main(options: RuntimeOptions | None = None):
         font_size=40,
         text_color=settings.TEXT_DARK,
         bg_color=settings.WII_TRANSLUCENT_BG,
-        shadow_color = settings.WII_SHADOW_COLOR
+        shadow_color=settings.WII_SHADOW_COLOR,
     )
 
     life_display = LifeDisplay(
-        screen_surface = screen,
-        icon_path = settings.HEART_IMAGE_PATH,
-        icon_size = 60,
-        pos = (0, 0),
-        max_lives = 3,
-        spacing = 1
+        screen_surface=screen,
+        icon_path=settings.HEART_IMAGE_PATH,
+        icon_size=60,
+        pos=(0, 0),
+        max_lives=3,
+        spacing=1,
     )
 
     configure_highscores(theme.theme_id, settings.DATA_DIR / "highscore.json")
@@ -158,15 +169,15 @@ def main(options: RuntimeOptions | None = None):
     emotion_history = deque(maxlen=settings.RECOGNITION_HISTORY_SIZE)
     smoothed_emotion = "探し中..."
     result = {
-        'top_emotion': '探し中...',
-        'box': None,
-        'status': 'init',
-        'reason': '初期化中',
-        'face_detected': False,
-        'emotion_success': False,
-        'latency_ms': 0.0,
-        'detector': 'opencv_haar',
-        'classifier': 'deepface_emotion_skip',
+        "top_emotion": "探し中...",
+        "box": None,
+        "status": "init",
+        "reason": "初期化中",
+        "face_detected": False,
+        "emotion_success": False,
+        "latency_ms": 0.0,
+        "detector": "opencv_haar",
+        "classifier": "deepface_emotion_skip",
     }
     last_result_gen = -1
     developer_mode = False
@@ -196,8 +207,10 @@ def main(options: RuntimeOptions | None = None):
 
     while running:
         # 変数を初期化。物理キー依存の変数を廃止し、意味（cancel）で統一。
-        s_key_pressed = cancel_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = r_key_pressed = False
-        
+        s_key_pressed = cancel_key_pressed = e_key_pressed = n_key_pressed = h_key_pressed = (
+            r_key_pressed
+        ) = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -212,9 +225,15 @@ def main(options: RuntimeOptions | None = None):
                     else:
                         # 単独の ESC はキャンセル操作
                         cancel_key_pressed = True
-                        
+
                         # 名前選択画面が出ておらず、かつキャンセル可能な画面でのみSEを鳴らす
-                        in_game_states = [GameState.COUNTDOWN, GameState.ROUND_START, GameState.PLAYING, GameState.JUDGE, GameState.RESULT]
+                        in_game_states = [
+                            GameState.COUNTDOWN,
+                            GameState.ROUND_START,
+                            GameState.PLAYING,
+                            GameState.JUDGE,
+                            GameState.RESULT,
+                        ]
                         if not selector.active and game_manager.state not in in_game_states:
                             sounds["select"].play()
 
@@ -222,17 +241,22 @@ def main(options: RuntimeOptions | None = None):
                     s_key_pressed = True
                     if not selector.active:
                         sounds["select"].play()
-                
+
                 # K_b および K_q は文字入力の邪魔になるため、システム操作からは完全に削除
-                if event.key == K_e: e_key_pressed = True
-                if event.key == K_n: n_key_pressed = True
-                if event.key == K_h: h_key_pressed = True
-                if event.key == K_r: r_key_pressed = True
-            
-            # NameSelectorがアクティブならイベントを流す（ESCキャンセル等の処理はNameSelector内で行う）
+                if event.key == K_e:
+                    e_key_pressed = True
+                if event.key == K_n:
+                    n_key_pressed = True
+                if event.key == K_h:
+                    h_key_pressed = True
+                if event.key == K_r:
+                    r_key_pressed = True
+
+            # NameSelectorがアクティブならイベントを流す。
+            # ESCキャンセル等の処理はNameSelector内で行う。
             if selector.active:
                 selector.handle_event(event)
-        
+
         if not running:
             break
 
@@ -270,11 +294,15 @@ def main(options: RuntimeOptions | None = None):
                     pass
             elif state == GameState.GAME_FINISH:
                 try:
-                    name = game_manager.player_name if hasattr(game_manager, 'player_name') else "名無し"
+                    name = (
+                        game_manager.player_name
+                        if hasattr(game_manager, "player_name")
+                        else "名無し"
+                    )
                     score = game_manager.score
                     is_new = highscore.update_if_better(name, score)
                     game_manager.new_personal_best = bool(is_new)
-                    
+
                     # 順位と自己ベストをキャッシュ
                     game_manager.all_time_rank = highscore.get_rank(score, is_today=False)
                     game_manager.todays_rank = highscore.get_rank(score, is_today=True)
@@ -287,9 +315,12 @@ def main(options: RuntimeOptions | None = None):
         prev_state = state
 
         if not developer_mode and state == GameState.TITLE:
-            if e_key_pressed: dev_code_buffer.append("E")
-            if n_key_pressed: dev_code_buffer.append("N")
-            if h_key_pressed: dev_code_buffer.append("H")
+            if e_key_pressed:
+                dev_code_buffer.append("E")
+            if n_key_pressed:
+                dev_code_buffer.append("N")
+            if h_key_pressed:
+                dev_code_buffer.append("H")
 
             if list(dev_code_buffer) == ["E", "N", "H"]:
                 developer_mode = True
@@ -305,8 +336,11 @@ def main(options: RuntimeOptions | None = None):
             smoothed_emotion = "探し中..."
 
         skip_emotion_states = [
-            GameState.TITLE, GameState.SKIP_SELECTION, GameState.INSTRUCTION,
-            GameState.EMOTION_MAP, GameState.COUNTDOWN
+            GameState.TITLE,
+            GameState.SKIP_SELECTION,
+            GameState.INSTRUCTION,
+            GameState.EMOTION_MAP,
+            GameState.COUNTDOWN,
         ]
         if developer_mode or (state not in skip_emotion_states and not selector.active):
             current_frame = cam.get_frame()
@@ -319,9 +353,9 @@ def main(options: RuntimeOptions | None = None):
                 last_result_gen = gen
                 result = new_result
                 if developer_mode:
-                    smoothed_emotion = result.get('top_emotion', '探し中...')
+                    smoothed_emotion = result.get("top_emotion", "探し中...")
                 else:
-                    emotion_history.append(result['top_emotion'])
+                    emotion_history.append(result["top_emotion"])
                     count = Counter(emotion_history)
                     smoothed_emotion = count.most_common(1)[0][0]
 
@@ -330,11 +364,11 @@ def main(options: RuntimeOptions | None = None):
             game_manager.update(
                 smoothed_emotion,
                 s_key_pressed,
-                cancel_key_pressed, 
+                cancel_key_pressed,
                 e_key_pressed,
                 n_key_pressed,
                 h_key_pressed,
-                r_key_pressed
+                r_key_pressed,
             )
 
         state = game_manager.state
@@ -344,11 +378,21 @@ def main(options: RuntimeOptions | None = None):
             if current_bgm != "title" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["title"])
                 current_bgm = "title"
-        elif state in (GameState.TITLE, GameState.SKIP_SELECTION, GameState.INSTRUCTION, GameState.EMOTION_MAP):
+        elif state in (
+            GameState.TITLE,
+            GameState.SKIP_SELECTION,
+            GameState.INSTRUCTION,
+            GameState.EMOTION_MAP,
+        ):
             if current_bgm != "title" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["title"])
                 current_bgm = "title"
-        elif state in (GameState.COUNTDOWN, GameState.PLAYING, GameState.RESULT, GameState.ROUND_START):
+        elif state in (
+            GameState.COUNTDOWN,
+            GameState.PLAYING,
+            GameState.RESULT,
+            GameState.ROUND_START,
+        ):
             if current_bgm != "play" or not is_bgm_playing:
                 utils.play_bgm(settings.BGM_PATHS["play"])
                 current_bgm = "play"
@@ -358,70 +402,70 @@ def main(options: RuntimeOptions | None = None):
                 current_bgm = "finish"
 
         if developer_mode:
-            drawing.draw_developer_screen(screen, backgrounds["gameplay"], frame, result, CAM_WIDTH)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
-
-        if selector.active:
-            drawing.draw_name_select_screen(screen, backgrounds["name_select"], selector, SCREEN_WIDTH, SCREEN_HEIGHT)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
-
-        if state == GameState.TITLE:
+            drawing.draw_developer_screen(
+                screen,
+                backgrounds["gameplay"],
+                frame,
+                result,
+                CAM_WIDTH,
+                display_fps=clock.get_fps(),
+                frame_time_ms=clock.get_time(),
+            )
+        elif selector.active:
+            drawing.draw_name_select_screen(
+                screen, backgrounds["name_select"], selector, SCREEN_WIDTH, SCREEN_HEIGHT
+            )
+        elif state == GameState.TITLE:
             drawing.draw_title_screen(screen, backgrounds["title"], floating_images)
             # 追加: キャッシュしたハイスコアを描画
             drawing.draw_title_highscores(screen, SCREEN_WIDTH, cached_best_all, cached_best_today)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
         elif state == GameState.SKIP_SELECTION:
-            drawing.draw_skip_selection_screen(screen, backgrounds["menu"], SCREEN_WIDTH, SCREEN_HEIGHT)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
+            drawing.draw_skip_selection_screen(
+                screen, backgrounds["menu"], SCREEN_WIDTH, SCREEN_HEIGHT
+            )
         elif state == GameState.INSTRUCTION:
-            drawing.draw_game_background(screen, backgrounds["instruction"], frame, result, smoothed_emotion, CAM_WIDTH)
-            drawing.draw_instruction_screen(screen, backgrounds["instruction"], SCREEN_WIDTH, SCREEN_HEIGHT)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
+            drawing.draw_game_background(
+                screen, backgrounds["instruction"], frame, result, smoothed_emotion, CAM_WIDTH
+            )
+            drawing.draw_instruction_screen(
+                screen, backgrounds["instruction"], SCREEN_WIDTH, SCREEN_HEIGHT
+            )
         elif state == GameState.EMOTION_MAP:
-            drawing.draw_game_background(screen, backgrounds["emotion_map"], frame, result, smoothed_emotion, CAM_WIDTH)
-            drawing.draw_emotion_map_screen(screen, backgrounds["emotion_map"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
+            drawing.draw_game_background(
+                screen, backgrounds["emotion_map"], frame, result, smoothed_emotion, CAM_WIDTH
+            )
+            drawing.draw_emotion_map_screen(
+                screen, backgrounds["emotion_map"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT
+            )
         elif state == GameState.COUNTDOWN:
-            drawing.draw_countdown_screen(screen, backgrounds["countdown"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
-            _present(display, screen, options.window_size)
-            clock.tick(game_manager.fps)
-            frame_count += 1
-            continue
+            drawing.draw_countdown_screen(
+                screen, backgrounds["countdown"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT
+            )
+        else:
+            active_background = (
+                backgrounds["result"] if state == GameState.RESULT else backgrounds["gameplay"]
+            )
+            drawing.draw_game_background(
+                screen, active_background, frame, result, smoothed_emotion, CAM_WIDTH
+            )
 
-        active_background = backgrounds["result"] if state == GameState.RESULT else backgrounds["gameplay"]
-        drawing.draw_game_background(screen, active_background, frame, result, smoothed_emotion, CAM_WIDTH)
+            if state == GameState.ROUND_START:
+                drawing.draw_round_start_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
+            elif state == GameState.PLAYING:
+                drawing.draw_playing_screen(
+                    screen, game_manager, timer_display, CAM_WIDTH, CAM_HEIGHT
+                )
+            elif state == GameState.RESULT:
+                drawing.draw_result_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
+            elif state == GameState.GAME_FINISH:
+                drawing.draw_finish_screen(
+                    screen, backgrounds["finish"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT
+                )
+                # 追加: 終了画面の右側に今回の順位と自己ベストを描画
+                drawing.draw_finish_highscores(screen, SCREEN_WIDTH, game_manager)
 
-        if state == GameState.ROUND_START:
-            drawing.draw_round_start_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
-        elif state == GameState.PLAYING:
-            drawing.draw_playing_screen(screen, game_manager, timer_display, CAM_WIDTH, CAM_HEIGHT)
-        elif state == GameState.RESULT:
-            drawing.draw_result_screen(screen, game_manager, CAM_WIDTH, CAM_HEIGHT)
-        elif state == GameState.GAME_FINISH:
-            drawing.draw_finish_screen(screen, backgrounds["finish"], game_manager, SCREEN_WIDTH, SCREEN_HEIGHT)
-            # 追加: 終了画面の右側に今回の順位と自己ベストを描画
-            drawing.draw_finish_highscores(screen, SCREEN_WIDTH, game_manager)
-
-        if state != GameState.GAME_FINISH:
-            drawing.draw_common_ui(screen, game_manager, CAM_WIDTH, CAM_HEIGHT, life_display)
+            if state != GameState.GAME_FINISH:
+                drawing.draw_common_ui(screen, game_manager, CAM_WIDTH, CAM_HEIGHT, life_display)
 
         _present(display, screen, options.window_size)
         clock.tick(game_manager.fps)
@@ -430,11 +474,10 @@ def main(options: RuntimeOptions | None = None):
     recognizer.stop()
     cam.release()
     pygame.time.wait(300)
+    assets.clear_asset_caches()
     pygame.quit()
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
